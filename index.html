@@ -1,180 +1,227 @@
 <!doctype html>
-<html lang="nl">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Zeslet</title>
-<meta name="description" content="Raad elke dag een Nederlands woord van zes letters in zes pogingen, in een race tegen een spook.">
-<meta name="claude:viewport-fit-sides" content="cover">
+<title>Quint</title>
+<meta name="description" content="Guess the daily five-letter word in six tries, in a race against a ghost.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@900&family=Libre+Franklin:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Libre+Franklin:wght@400;600;700;800&display=swap">
 <style>
-/* Layout: one screen. Header, ghost track + square board in the flexible middle, keyboard pinned below. */
+/* Layout: one screen. Navy header band, ghost track + board in the flexible middle, keyboard pinned below. */
 :root {
-  --bg: #ffffff; --fg: #1a1a1b; --muted: #5f6368; --line: #d3d6da; --line-strong: #878a8c;
-  --key: #d3d6da; --key-fg: #1a1a1b; --surface: #ffffff; --shade: rgba(255,255,255,.55);
-  --correct: #6aaa64; --present: #c9b458; --absent: #787c7e;
-  --on-correct: #ffffff; --on-present: #ffffff; --on-absent: #ffffff;
-  --toast-bg: #1a1a1b; --toast-fg: #ffffff; --empty-mini: #e9eaec;
-  --display: "Frank Ruhl Libre", Georgia, "Times New Roman", serif;
+  --navy: #00205b; --cyan: #00a9e0; --red: #e2001a; --white: #ffffff;
+  --bg: #ffffff; --fg: #00205b; --muted: #4f5f80; --line: #c9d5e6; --line-strong: #6f82a6;
+  --key: #dbe6f2; --key-fg: #00205b; --surface: #ffffff; --shade: rgba(0,32,91,.45);
+  --correct: #00a9e0; --present: #e2001a; --absent: #6b7790;
+  --on-correct: #001a4a; --on-present: #ffffff; --on-absent: #ffffff;
+  --toast-bg: #00205b; --toast-fg: #ffffff; --empty-mini: #e3ebf5;
+  --display: "Archivo Black", "Arial Black", Arial, sans-serif;
   --body: "Libre Franklin", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #121213; --fg: #f8f8f8; --muted: #a5a7aa; --line: #3a3a3c; --line-strong: #565758;
-    --key: #818384; --key-fg: #ffffff; --surface: #1c1c1e; --shade: rgba(0,0,0,.55);
-    --correct: #538d4e; --present: #b59f3b; --absent: #3a3a3c;
-    --toast-bg: #f8f8f8; --toast-fg: #121213; --empty-mini: #2a2a2c;
+    --bg: #00143d; --fg: #f4f8fd; --muted: #a9bad8; --line: #2b4274; --line-strong: #5f78aa;
+    --key: #4f6aa3; --key-fg: #ffffff; --surface: #001c52; --shade: rgba(0,8,30,.65);
+    --absent: #22335f;
+    --toast-bg: #f4f8fd; --toast-fg: #00143d; --empty-mini: #122a5c;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #121213; --fg: #f8f8f8; --muted: #a5a7aa; --line: #3a3a3c; --line-strong: #565758;
-  --key: #818384; --key-fg: #ffffff; --surface: #1c1c1e; --shade: rgba(0,0,0,.55);
-  --correct: #538d4e; --present: #b59f3b; --absent: #3a3a3c;
-  --toast-bg: #f8f8f8; --toast-fg: #121213; --empty-mini: #2a2a2c;
+  --bg: #00143d; --fg: #f4f8fd; --muted: #a9bad8; --line: #2b4274; --line-strong: #5f78aa;
+  --key: #4f6aa3; --key-fg: #ffffff; --surface: #001c52; --shade: rgba(0,8,30,.65);
+  --absent: #22335f;
+  --toast-bg: #f4f8fd; --toast-fg: #00143d; --empty-mini: #122a5c;
   color-scheme: dark;
 }
-:root.hc { --correct: #f5793a; --present: #85c0f9; --on-present: #10233a; }
+:root.hc { --correct: #ffd400; --on-correct: #00143d; --present: #ff5a00; --on-present: #00143d; }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-:root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 html, body { height: 100%; }
 body {
-  margin: 0; font-size: 14px;
+  margin: 0; font-size: 14px; overflow: hidden;
   background: var(--bg); color: var(--fg); font-family: var(--body);
-  overflow: hidden; -webkit-tap-highlight-color: transparent;
+  -webkit-tap-highlight-color: transparent;
 }
 button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
-:focus-visible { outline: 2px solid var(--line-strong); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 
-#app {
-  height: 100%; display: flex; flex-direction: column; gap: 8px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 0 8px;
-}
+#app { height: 100%; display: flex; flex-direction: column; }
 
 header {
   flex: none; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-  height: 56px; border-bottom: 1px solid var(--line);
+  height: 58px; background: var(--navy); color: var(--white);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
+#stripe { flex: none; height: 5px; background: linear-gradient(90deg, var(--cyan) 0 50%, var(--white) 50% 62%, var(--red) 62% 100%); background-size: 100% 100%; animation: sweep .9s cubic-bezier(.2,.8,.2,1) both; transform-origin: left; }
+@keyframes sweep { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .tools { display: flex; gap: 2px; }
 .tools.right { justify-content: flex-end; }
 .icon-btn {
   width: 38px; height: 38px; display: grid; place-items: center;
   background: none; border: 0; border-radius: 6px; padding: 0;
+  transition: background .15s, transform .15s;
 }
-.icon-btn:hover { background: var(--empty-mini); }
-.icon-btn[aria-pressed="true"] { background: var(--correct); color: var(--on-correct); }
+.icon-btn:hover { background: rgba(255,255,255,.16); transform: translateY(-1px); }
+.icon-btn:active { transform: scale(.9); }
+dialog .icon-btn:hover { background: var(--empty-mini); }
+.icon-btn[aria-pressed="true"] { background: var(--cyan); color: var(--navy); }
 .icon-btn svg { width: 22px; height: 22px; }
 .brand { text-align: center; line-height: 1; }
-.brand h1 { margin: 0; font: 900 clamp(24px, 7vw, 32px)/1 var(--display); letter-spacing: .02em; }
+.brand h1 { margin: 0; font: 400 clamp(23px, 6.5vw, 29px)/1 var(--display); letter-spacing: .06em; text-transform: uppercase; }
+.brand h1 span { display: inline-block; animation: drop .55s cubic-bezier(.3,1.5,.5,1) both; animation-delay: calc(var(--i) * 70ms); }
+@keyframes drop { from { transform: translateY(-140%) rotate(-12deg); opacity: 0; } }
+.brand h1:hover span { animation: wave .5s ease; animation-delay: calc(var(--i) * 50ms); }
+@keyframes wave { 40% { transform: translateY(-5px); color: var(--cyan); } }
 .brand p {
-  margin: 3px 0 0; font-size: 10px; font-weight: 600; color: var(--muted);
-  letter-spacing: .08em; text-transform: uppercase; white-space: nowrap;
+  margin: 3px 0 0; font-size: 10px; font-weight: 600; color: #bcd0ec;
+  letter-spacing: .1em; text-transform: uppercase; white-space: nowrap;
 }
 
-main { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+main {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 8px;
+}
 #board-wrap { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
 
 #ghost {
-  flex: none; width: var(--size, 320px); display: flex; align-items: center; gap: 8px;
+  flex: none; width: calc(var(--size, 320px) * 5 / 6); display: flex; align-items: center; gap: 8px;
   background: none; border: 0; padding: 2px 0; color: var(--muted);
 }
-#ghost svg { flex: none; width: 18px; height: 18px; }
+#ghost svg { flex: none; width: 18px; height: 18px; animation: bob 2.8s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-2px); } }
 #ghost .label { font-size: 12px; font-weight: 700; }
-#ghost-track { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
-.mini-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px; }
-.mini-row i { display: block; aspect-ratio: 1; background: var(--empty-mini); border-radius: 1px; }
+#ghost-track { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+.mini-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; }
+.mini-row i { display: block; aspect-ratio: 1; background: var(--empty-mini); border-radius: 1px; transition: background .35s, transform .35s; }
+.mini-row i[data-state] { transform: scale(1.08); }
 .mini-row i[data-state="correct"] { background: var(--correct); }
 .mini-row i[data-state="present"] { background: var(--present); }
 .mini-row i[data-state="absent"] { background: var(--absent); }
-#ghost.haunt svg { animation: haunt .5s ease; }
-@keyframes haunt { 30% { transform: translateY(-4px) rotate(-10deg); } 70% { transform: translateY(-2px) rotate(8deg); } }
+#ghost.haunt svg { animation: haunt .55s ease; }
+@keyframes haunt { 30% { transform: translateY(-5px) rotate(-12deg) scale(1.2); } 70% { transform: translateY(-2px) rotate(10deg) scale(1.1); } }
 
-#board { flex: none; width: var(--size, 320px); height: var(--size, 320px); display: grid; grid-template-rows: repeat(6, 1fr); gap: 5px; }
-.row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; min-height: 0; }
+#board { flex: none; width: calc(var(--size, 320px) * 5 / 6); height: var(--size, 320px); display: grid; grid-template-rows: repeat(6, 1fr); gap: 5px; }
+.row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; min-height: 0; perspective: 500px; }
 .row.shake { animation: shake .5s; }
 @keyframes shake {
   10%,90% { transform: translateX(-1px); } 20%,80% { transform: translateX(2px); }
-  30%,50%,70% { transform: translateX(-4px); } 40%,60% { transform: translateX(4px); }
+  30%,50%,70% { transform: translateX(-5px); } 40%,60% { transform: translateX(5px); }
 }
 .tile {
   display: grid; place-items: center; min-height: 0;
   border: 2px solid var(--line); font-weight: 800; user-select: none;
   font-size: calc(var(--size, 320px) / 6 * .52); line-height: 1; text-transform: uppercase;
+  transition: border-color .15s;
 }
 .tile[data-state="tbd"] { border-color: var(--line-strong); }
 .tile[data-state="correct"] { background: var(--correct); border-color: var(--correct); color: var(--on-correct); }
 .tile[data-state="present"] { background: var(--present); border-color: var(--present); color: var(--on-present); }
 .tile[data-state="absent"] { background: var(--absent); border-color: var(--absent); color: var(--on-absent); }
-.tile.pop { animation: pop .1s; }
-@keyframes pop { 50% { transform: scale(1.1); } }
+#board.enter .tile { animation: enter .45s cubic-bezier(.3,1.4,.5,1) both; animation-delay: calc(var(--d) * 1ms); }
+@keyframes enter { from { transform: scale(.4) rotate(-6deg); opacity: 0; } }
+.tile.cursor { animation: cursor 1.4s ease-in-out infinite; }
+@keyframes cursor { 50% { border-color: var(--cyan); } }
+.tile.pop { animation: pop .13s; }
+@keyframes pop { 50% { transform: scale(1.14); } }
 .tile.flip { animation: flip .46s ease; }
 @keyframes flip { 0%,100% { transform: rotateX(0); } 50% { transform: rotateX(-90deg); } }
 .tile.bounce { animation: bounce .9s; }
 @keyframes bounce {
-  0%,20% { transform: translateY(0); } 40% { transform: translateY(-30%); }
-  50% { transform: translateY(4%); } 60% { transform: translateY(-12%); }
+  0%,20% { transform: translateY(0); } 40% { transform: translateY(-34%) rotate(-3deg); }
+  50% { transform: translateY(4%); } 60% { transform: translateY(-14%) rotate(2deg); }
   80% { transform: translateY(2%); } 100% { transform: translateY(0); }
 }
+.tile.sink { animation: sink .7s ease both; animation-delay: calc(var(--d) * 1ms); }
+@keyframes sink { 40% { transform: translateY(6px) rotate(3deg); } 100% { transform: translateY(0); } }
 
-#keyboard { flex: none; width: 100%; max-width: 500px; margin-inline: auto; display: flex; flex-direction: column; gap: 6px; }
+#keyboard { flex: none; width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 6px; }
 .key-row { display: flex; gap: 5px; justify-content: center; }
 .key {
   flex: 1 1 0; min-width: 0; height: 56px; border: 0; border-radius: 4px; padding: 0;
   background: var(--key); color: var(--key-fg);
   font-weight: 700; font-size: 14px; text-transform: uppercase;
   display: grid; place-items: center;
+  transition: background .3s, color .3s, transform .08s;
 }
+.key:hover { filter: brightness(1.06); }
+.key:active { transform: scale(.92); }
+.key.press { animation: press .14s; }
+@keyframes press { 50% { transform: scale(.9); } }
+.key.lit { animation: lit .5s ease; }
+@keyframes lit { 40% { transform: scale(1.12); } }
 .key.wide { flex: 1.55 1 0; font-size: 11px; }
 .key svg { width: 22px; height: 22px; }
 .key[data-state="correct"] { background: var(--correct); color: var(--on-correct); }
 .key[data-state="present"] { background: var(--present); color: var(--on-present); }
 .key[data-state="absent"] { background: var(--absent); color: var(--on-absent); }
 .spacer { flex: .5 1 0; }
-@media (max-height: 680px) { .key { height: 46px; } header { height: 48px; } }
+@media (max-height: 680px) { .key { height: 46px; } header { height: 50px; } }
 @media (max-height: 560px) { .key { height: 38px; } }
 
 #toasts {
   position: fixed; z-index: 30; left: 0; right: 0;
-  top: calc(64px + env(safe-area-inset-top, 0px));
+  top: calc(70px + env(safe-area-inset-top, 0px));
   display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none;
 }
-.toast { background: var(--toast-bg); color: var(--toast-fg); font-weight: 700; font-size: 14px; padding: 10px 14px; border-radius: 4px; max-width: calc(100vw - 32px); text-align: center; }
+.toast { background: var(--toast-bg); color: var(--toast-fg); font-weight: 700; font-size: 14px; padding: 10px 14px; border-radius: 4px; max-width: calc(100vw - 32px); text-align: center; animation: toast .25s cubic-bezier(.3,1.4,.5,1) both; }
+@keyframes toast { from { transform: translateY(-12px) scale(.92); opacity: 0; } }
+
+#confetti { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 25; pointer-events: none; }
+.flyby { position: fixed; z-index: 26; left: 0; top: 40%; width: 72px; height: 72px; color: var(--muted); pointer-events: none; animation: flyby 2.2s ease-in-out both; }
+.flyby svg { width: 100%; height: 100%; }
+@keyframes flyby {
+  0% { transform: translate(-90px, 30px) rotate(-8deg); opacity: 0; }
+  12% { opacity: .95; }
+  35% { transform: translate(30vw, -50px) rotate(8deg); }
+  65% { transform: translate(65vw, 40px) rotate(-8deg); }
+  88% { opacity: .95; }
+  100% { transform: translate(calc(100vw + 20px), -30px) rotate(8deg); opacity: 0; }
+}
 
 dialog {
   width: min(500px, calc(100vw - 32px)); max-height: calc(100% - 32px); overflow: auto;
-  padding: 20px; border: 1px solid var(--line); border-radius: 8px;
-  background: var(--surface); color: var(--fg); box-shadow: 0 8px 28px rgba(0,0,0,.25);
+  padding: 20px; border: 1px solid var(--line); border-radius: 8px; border-top: 5px solid var(--cyan);
+  background: var(--surface); color: var(--fg); box-shadow: 0 10px 34px rgba(0,16,50,.35);
 }
-dialog::backdrop { background: var(--shade); }
+dialog[open] { animation: dlg .3s cubic-bezier(.25,1.25,.5,1) both; }
+@keyframes dlg { from { transform: translateY(26px) scale(.97); opacity: 0; } }
+dialog::backdrop { background: var(--shade); animation: fade .25s both; }
+@keyframes fade { from { opacity: 0; } }
 .dlg-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
-dialog h2 { margin: 0; font: 900 26px/1.1 var(--display); text-wrap: balance; }
+dialog h2 { margin: 0; font: 400 23px/1.1 var(--display); text-wrap: balance; }
 dialog h3 { margin: 18px 0 8px; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 dialog p, dialog li { font-size: 15px; line-height: 1.5; }
 dialog p { margin: 0 0 10px; }
 dialog ul { margin: 0 0 10px; padding-left: 20px; }
 dialog a { color: inherit; }
-.example { display: grid; grid-template-columns: repeat(6, 34px); gap: 4px; margin: 12px 0 4px; }
-.example .tile { height: 34px; font-size: 18px; }
+.example { display: grid; grid-template-columns: repeat(5, 36px); gap: 4px; margin: 12px 0 4px; }
+.example .tile { height: 36px; font-size: 19px; }
 .small { font-size: 13px; color: var(--muted); }
 
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; font-variant-numeric: tabular-nums; }
 .stat-grid b { display: block; font-size: 30px; font-weight: 600; line-height: 1.1; }
 .stat-grid span { font-size: 11px; line-height: 1.2; display: block; }
 .dist { display: grid; gap: 4px; font-variant-numeric: tabular-nums; }
-.dist div { display: grid; grid-template-columns: 12px 1fr; gap: 6px; align-items: center; font-size: 13px; font-weight: 600; }
-.bar { display: block; background: var(--absent); color: var(--on-absent); text-align: right; padding: 1px 7px; min-width: 22px; width: var(--w, 0%); font-weight: 700; }
+.dist > div { display: grid; grid-template-columns: 12px 1fr; gap: 6px; align-items: center; font-size: 13px; font-weight: 600; }
+.bar { display: block; background: var(--absent); color: var(--on-absent); text-align: right; padding: 1px 7px; min-width: 22px; width: var(--w, 0%); font-weight: 700; animation: grow .6s cubic-bezier(.2,.9,.3,1) both; animation-delay: calc(var(--i) * 60ms); }
+@keyframes grow { from { width: 22px; } }
 .bar.now { background: var(--correct); color: var(--on-correct); }
 .verdict { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
 .ghost-words { display: grid; gap: 3px; }
-.ghost-words div { display: grid; grid-template-columns: repeat(6, 24px); gap: 2px; }
-.ghost-words .tile { height: 24px; font-size: 13px; border-width: 0; }
+.ghost-words div { display: grid; grid-template-columns: repeat(5, 26px); gap: 2px; animation: toast .3s both; animation-delay: calc(var(--i) * 90ms); }
+.ghost-words .tile { height: 26px; font-size: 14px; border-width: 0; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
-.btn { flex: 1 1 150px; min-height: 46px; border: 0; border-radius: 24px; font-weight: 700; font-size: 15px; background: var(--correct); color: var(--on-correct); padding: 8px 16px; }
+.btn { flex: 1 1 150px; min-height: 46px; border: 0; border-radius: 24px; font-weight: 700; font-size: 15px; background: var(--correct); color: var(--on-correct); padding: 8px 16px; transition: transform .12s, filter .12s; }
+.btn:hover { transform: translateY(-2px); filter: brightness(1.06); }
+.btn:active { transform: scale(.96); }
 .btn.alt { background: none; border: 1px solid var(--line-strong); color: var(--fg); }
 #share-fallback { width: 100%; height: 130px; margin-top: 10px; font: 14px/1.3 var(--body); background: var(--bg); color: var(--fg); border: 1px solid var(--line); padding: 8px; }
 
@@ -183,12 +230,12 @@ dialog a { color: inherit; }
 .setting strong { display: block; font-size: 15px; font-weight: 600; }
 .setting span { display: block; font-size: 12px; color: var(--muted); }
 .setting input { flex: none; width: 42px; height: 24px; appearance: none; -webkit-appearance: none; margin: 0; border-radius: 12px; background: var(--line-strong); position: relative; cursor: pointer; transition: background .15s; }
-.setting input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #ffffff; transition: transform .15s; }
+.setting input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #ffffff; transition: transform .18s cubic-bezier(.3,1.5,.5,1); }
 .setting input:checked { background: var(--correct); }
 .setting input:checked::after { transform: translateX(18px); }
 
 @media (prefers-reduced-motion: reduce) {
-  .tile.pop, .tile.flip, .tile.bounce, .row.shake, #ghost.haunt svg { animation: none; }
+  *, *::before, *::after, dialog::backdrop { animation: none !important; transition: none !important; }
 }
 </style>
 </head>
@@ -197,74 +244,75 @@ dialog a { color: inherit; }
 <div id="app">
   <header>
     <div class="tools">
-      <button class="icon-btn" id="btn-help" aria-label="Uitleg" title="Uitleg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.6 2.6 0 1 1 3.9 2.3c-.9.5-1.4 1.1-1.4 2.2"/><path d="M12 17h.01"/></svg></button>
-      <button class="icon-btn" id="btn-mode" aria-label="Oefenen" aria-pressed="false" title="Oefenen met een willekeurig woord"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01"/></svg></button>
+      <button class="icon-btn" id="btn-help" aria-label="How to play" title="How to play"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.6 2.6 0 1 1 3.9 2.3c-.9.5-1.4 1.1-1.4 2.2"/><path d="M12 17h.01"/></svg></button>
+      <button class="icon-btn" id="btn-mode" aria-label="Practice" aria-pressed="false" title="Practice with a random word"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.500 15.500h.01"/></svg></button>
     </div>
-    <div class="brand"><h1>Zeslet</h1><p id="subtitle"></p></div>
+    <div class="brand"><h1 id="logo" aria-label="Quint"></h1><p id="subtitle"></p></div>
     <div class="tools right">
-      <button class="icon-btn" id="btn-stats" aria-label="Statistieken" title="Statistieken"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20v-6M12 20V5M19 20v-10"/></svg></button>
-      <button class="icon-btn" id="btn-settings" aria-label="Instellingen" title="Instellingen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h9M18 7h2M4 17h2M11 17h9"/><circle cx="15.5" cy="7" r="2.5"/><circle cx="8.5" cy="17" r="2.5"/></svg></button>
+      <button class="icon-btn" id="btn-stats" aria-label="Statistics" title="Statistics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20v-6M12 20V5M19 20v-10"/></svg></button>
+      <button class="icon-btn" id="btn-settings" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h9M18 7h2M4 17h2M11 17h9"/><circle cx="15.5" cy="7" r="2.5"/><circle cx="8.5" cy="17" r="2.5"/></svg></button>
     </div>
   </header>
+  <div id="stripe" aria-hidden="true"></div>
 
   <main>
     <div id="board-wrap">
-      <button id="ghost" aria-label="Wat is het spook?" title="Het spook raadt mee. Je ziet alleen zijn kleuren.">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M4 22V10a8 8 0 0 1 16 0v12l-3-2.2L14.5 22 12 19.8 9.500 22 7 19.800zM9 8.500a1.500 1.500 0 1 0 0 3 1.500 1.500 0 0 0 0-3zm6 0a1.500 1.500 0 1 0 0 3 1.500 1.500 0 0 0 0-3z"/></svg>
-        <span class="label">Spook</span>
+      <button id="ghost" aria-label="What is the ghost?" title="The ghost is guessing too. You only see its colours.">
+        <svg id="ghost-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M4 22V10a8 8 0 0 1 16 0v12l-3-2.2L14.500 22 12 19.800 9.500 22 7 19.800zM9 8.500a1.500 1.500 0 1 0 0 3 1.500 1.500 0 0 0 0-3zm6 0a1.500 1.500 0 1 0 0 3 1.500 1.500 0 0 0 0-3z"/></svg>
+        <span class="label">Ghost</span>
         <span id="ghost-track"></span>
       </button>
-      <div id="board" role="grid" aria-label="Speelbord"></div>
+      <div id="board" role="grid" aria-label="Game board"></div>
     </div>
-    <div id="keyboard" aria-label="Toetsenbord"></div>
+    <div id="keyboard" aria-label="Keyboard"></div>
   </main>
 </div>
 <div id="toasts" aria-live="polite"></div>
+<canvas id="confetti" aria-hidden="true" hidden></canvas>
 
 <dialog id="dlg-help">
-  <div class="dlg-top"><h2>Zo speel je</h2><button class="icon-btn close" aria-label="Sluiten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
-  <p>Raad het Nederlandse woord van zes letters in zes pogingen. Elke dag is er een nieuw woord, voor iedereen hetzelfde.</p>
+  <div class="dlg-top"><h2>How to play</h2><button class="icon-btn close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <p>Guess the five-letter word in six tries. There is a new word every day, the same for everyone.</p>
   <ul>
-    <li>Elke poging moet een bestaand woord van zes letters zijn.</li>
-    <li>IJ telt als twee letters: I en J.</li>
-    <li>De kleuren laten zien hoe dicht je bij het woord zit.</li>
+    <li>Each guess must be a real five-letter word.</li>
+    <li>The colours show how close you are.</li>
   </ul>
-  <div class="example" aria-hidden="true"><span class="tile" data-state="correct">K</span><span class="tile">A</span><span class="tile">C</span><span class="tile">H</span><span class="tile">E</span><span class="tile">L</span></div>
-  <p class="correct-txt"><b>K</b> staat op de juiste plek.</p>
-  <div class="example" aria-hidden="true"><span class="tile">M</span><span class="tile">O</span><span class="tile" data-state="present">L</span><span class="tile">E</span><span class="tile">N</span><span class="tile">S</span></div>
-  <p><b>L</b> zit in het woord, maar op een andere plek.</p>
-  <div class="example" aria-hidden="true"><span class="tile">W</span><span class="tile">I</span><span class="tile">N</span><span class="tile">T</span><span class="tile" data-state="absent">E</span><span class="tile">R</span></div>
-  <p><b>E</b> zit niet in het woord.</p>
-  <h3>Het spook</h3>
-  <p>Je speelt niet alleen. Na elke poging van jou raadt het spook ook een woord. Boven het bord zie je alleen zijn kleuren, niet zijn letters. Heb jij het woord in minder pogingen, dan versla je het spook. Aan het eind zie je welke woorden het probeerde.</p>
-  <p>Iedereen speelt op dezelfde dag tegen hetzelfde spook. Je kunt het uitzetten bij de instellingen.</p>
-  <p class="small">Woordenlijst: <a href="https://github.com/OpenTaal/opentaal-wordlist" target="_blank" rel="noopener">OpenTaal</a>, onder BSD- en CC BY 3.0-licentie.</p>
+  <div class="example" aria-hidden="true"><span class="tile" data-state="correct">B</span><span class="tile">R</span><span class="tile">E</span><span class="tile">A</span><span class="tile">D</span></div>
+  <p><b>B</b> is in the right spot.</p>
+  <div class="example" aria-hidden="true"><span class="tile">S</span><span class="tile">T</span><span class="tile" data-state="present">O</span><span class="tile">N</span><span class="tile">E</span></div>
+  <p><b>O</b> is in the word, but in a different spot.</p>
+  <div class="example" aria-hidden="true"><span class="tile">L</span><span class="tile">I</span><span class="tile" data-state="absent">G</span><span class="tile">H</span><span class="tile">T</span></div>
+  <p><b>G</b> is not in the word.</p>
+  <h3>The ghost</h3>
+  <p>You are not playing alone. After each of your guesses, the ghost guesses too. Above the board you see only its colours, never its letters. Solve the word in fewer tries and you beat the ghost. At the end you see which words it tried.</p>
+  <p>Everyone faces the same ghost on the same day. You can turn it off in the settings.</p>
+  <p class="small">Word list: <a href="https://github.com/dolph/dictionary" target="_blank" rel="noopener">ENABLE</a>, public domain.</p>
 </dialog>
 
 <dialog id="dlg-stats">
-  <div class="dlg-top"><h2 id="stats-title">Statistieken</h2><button class="icon-btn close" aria-label="Sluiten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="dlg-top"><h2 id="stats-title">Statistics</h2><button class="icon-btn close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div id="result"></div>
   <div class="stat-grid" id="stat-grid"></div>
-  <h3>Verdeling van pogingen</h3>
+  <h3>Guess distribution</h3>
   <div class="dist" id="dist"></div>
   <p class="small" id="ghost-record" style="margin-top:12px"></p>
   <p class="small" id="next-word"></p>
   <div class="actions" id="actions"></div>
-  <textarea id="share-fallback" readonly hidden aria-label="Uitslag om te kopiëren"></textarea>
+  <textarea id="share-fallback" readonly hidden aria-label="Result to copy"></textarea>
 </dialog>
 
 <dialog id="dlg-settings">
-  <div class="dlg-top"><h2>Instellingen</h2><button class="icon-btn close" aria-label="Sluiten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
-  <div class="setting"><label for="set-hard"><strong>Moeilijke modus</strong><span>Gevonden letters moet je in je volgende pogingen gebruiken</span></label><input type="checkbox" id="set-hard"></div>
-  <div class="setting"><label for="set-ghost"><strong>Spook</strong><span>Speel tegen een tegenstander die alleen zijn kleuren laat zien</span></label><input type="checkbox" id="set-ghost"></div>
-  <div class="setting"><label for="set-dark"><strong>Donker thema</strong><span>Prettig voor de ogen in het donker</span></label><input type="checkbox" id="set-dark"></div>
-  <div class="setting"><label for="set-hc"><strong>Hoog contrast</strong><span>Oranje en blauw, voor beter kleurzicht</span></label><input type="checkbox" id="set-hc"></div>
+  <div class="dlg-top"><h2>Settings</h2><button class="icon-btn close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="setting"><label for="set-hard"><strong>Hard mode</strong><span>Letters you find must be used in later guesses</span></label><input type="checkbox" id="set-hard"></div>
+  <div class="setting"><label for="set-ghost"><strong>Ghost</strong><span>Race an opponent who only shows its colours</span></label><input type="checkbox" id="set-ghost"></div>
+  <div class="setting"><label for="set-dark"><strong>Dark theme</strong><span>Easier on the eyes at night</span></label><input type="checkbox" id="set-dark"></div>
+  <div class="setting"><label for="set-hc"><strong>High contrast</strong><span>Yellow and orange, for colour vision differences</span></label><input type="checkbox" id="set-hc"></div>
 </dialog>
 
-<script src="woorden.js"></script>
+<script src="words.js"></script>
 <script>
 /* ENGINE-START */
-const WORD_LEN = 6, MAX_TRIES = 6;
+const WORD_LEN = 5, MAX_TRIES = 6;
 
 function evaluate(guess, answer) {
   const res = Array(WORD_LEN).fill('absent');
@@ -307,12 +355,12 @@ function hardModeError(guess, previous, answer) {
   for (const prev of previous) {
     const pat = evaluate(prev, answer);
     for (let i = 0; i < WORD_LEN; i++) {
-      if (pat[i] === 'correct' && guess[i] !== prev[i]) return `Letter ${i + 1} moet een ${prev[i].toUpperCase()} zijn`;
+      if (pat[i] === 'correct' && guess[i] !== prev[i]) return `Letter ${i + 1} must be ${prev[i].toUpperCase()}`;
     }
     const need = {};
     for (let i = 0; i < WORD_LEN; i++) if (pat[i] !== 'absent') need[prev[i]] = (need[prev[i]] || 0) + 1;
     for (const l in need) {
-      if (guess.split(l).length - 1 < need[l]) return `Je moet de ${l.toUpperCase()} gebruiken`;
+      if (guess.split(l).length - 1 < need[l]) return `Guess must contain ${l.toUpperCase()}`;
     }
   }
   return null;
@@ -326,10 +374,10 @@ function dailyAnswer(n, answers) {
 }
 /* ENGINE-END */
 
-const ANSWERS = window.ZESLET_ANTWOORDEN.split(' ');
-const POOL = window.ZESLET_WOORDEN.split(' ');
+const ANSWERS = window.QUINT_ANSWERS.split(' ');
+const POOL = window.QUINT_WORDS.split(' ');
 const VALID = new Set(POOL);
-const STORE_KEY = 'zeslet.v1';
+const STORE_KEY = 'quint.v1';
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = id => document.getElementById(id);
 
@@ -397,6 +445,7 @@ function buildBoard() {
     for (let c = 0; c < WORD_LEN; c++) {
       const t = document.createElement('div');
       t.className = 'tile'; t.setAttribute('role', 'gridcell');
+      t.style.setProperty('--d', (r + c) * 40);
       row.append(t); tiles[r][c] = t;
     }
     board.append(row); rows[r] = row;
@@ -409,6 +458,11 @@ function buildBoard() {
     for (let c = 0; c < WORD_LEN; c++) m.append(document.createElement('i'));
     track.append(m);
   }
+  [...'Quint'].forEach((ch, i) => {
+    const s = document.createElement('span');
+    s.textContent = ch; s.style.setProperty('--i', i); s.setAttribute('aria-hidden', 'true');
+    $('logo').append(s);
+  });
 }
 function buildKeyboard() {
   const kb = $('keyboard');
@@ -422,7 +476,7 @@ function buildKeyboard() {
     if (i === 1) row.append(Object.assign(document.createElement('span'), { className: 'spacer' }));
     if (i === 2) {
       const back = makeKey('back', '', true);
-      back.setAttribute('aria-label', 'Letter wissen');
+      back.setAttribute('aria-label', 'Delete letter');
       back.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M9 5h11v14H9l-6-7zM13 10l4 4M17 10l-4 4"/></svg>';
       row.append(back);
     }
@@ -440,7 +494,14 @@ function makeKey(id, label, wide) {
 function setTile(t, letter, state) {
   t.textContent = letter;
   if (state) t.dataset.state = state; else delete t.dataset.state;
-  t.setAttribute('aria-label', letter ? `${letter.toUpperCase()}${state && state !== 'tbd' ? ', ' + ({ correct: 'juiste plek', present: 'andere plek', absent: 'niet in het woord' })[state] : ''}` : 'leeg');
+  t.setAttribute('aria-label', letter ? `${letter.toUpperCase()}${state && state !== 'tbd' ? ', ' + ({ correct: 'right spot', present: 'wrong spot', absent: 'not in word' })[state] : ''}` : 'empty');
+}
+function markCursor() {
+  document.querySelectorAll('.tile.cursor').forEach(t => t.classList.remove('cursor'));
+  const g = game();
+  if (g.done || busy) return;
+  const t = tiles[g.guesses.length] && tiles[g.guesses.length][S.typed.length];
+  if (t) t.classList.add('cursor');
 }
 function drawBoard() {
   const g = game();
@@ -449,21 +510,24 @@ function drawBoard() {
     const active = !word && r === g.guesses.length && !g.done;
     for (let c = 0; c < WORD_LEN; c++) {
       const t = tiles[r][c];
-      t.classList.remove('flip', 'pop', 'bounce');
+      t.classList.remove('flip', 'pop', 'bounce', 'sink');
       if (word) setTile(t, word[c], pat[c]);
       else if (active && S.typed[c]) setTile(t, S.typed[c], 'tbd');
       else setTile(t, '', null);
     }
   }
+  markCursor();
 }
-function drawKeys() {
+function drawKeys(animate) {
   const g = game(), rank = { absent: 1, present: 2, correct: 3 }, best = {};
   for (const w of g.guesses) evaluate(w, g.answer).forEach((s, i) => {
     if (!best[w[i]] || rank[s] > rank[best[w[i]]]) best[w[i]] = s;
   });
   for (const id in keyEls) {
     if (id.length > 1) continue;
-    if (best[id]) keyEls[id].dataset.state = best[id]; else delete keyEls[id].dataset.state;
+    const el = keyEls[id], was = el.dataset.state;
+    if (best[id]) el.dataset.state = best[id]; else delete el.dataset.state;
+    if (animate && best[id] && best[id] !== was && !reduced()) retrigger(el, 'lit');
   }
 }
 function drawGhost() {
@@ -482,15 +546,15 @@ function drawGhost() {
 }
 function drawChrome() {
   const g = game();
-  $('subtitle').textContent = S.mode === 'daily' ? `Dagwoord ${g.day}` : 'Oefenwoord';
+  $('subtitle').textContent = S.mode === 'daily' ? `Daily ${g.day}` : 'Practice';
   $('btn-mode').setAttribute('aria-pressed', S.mode === 'practice' ? 'true' : 'false');
 }
-function drawAll() { drawBoard(); drawKeys(); drawGhost(); drawChrome(); }
+function drawAll() { drawBoard(); drawKeys(false); drawGhost(); drawChrome(); }
 
 function sizeBoard() {
   const wrap = $('board-wrap');
   const stripH = ghostOn() ? $('ghost').offsetHeight + 8 : 0;
-  const size = Math.max(180, Math.min(wrap.clientWidth, wrap.clientHeight - stripH, 440));
+  const size = Math.max(180, Math.min(wrap.clientWidth * 6 / 5, wrap.clientHeight - stripH, 480));
   document.documentElement.style.setProperty('--size', size + 'px');
 }
 
@@ -506,6 +570,54 @@ function retrigger(el, cls) {
   el.classList.add(cls);
 }
 
+/* ---------- Effects ---------- */
+function confetti() {
+  if (reduced()) return;
+  const cv = $('confetti');
+  cv.hidden = false;
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = innerWidth * dpr; cv.height = innerHeight * dpr;
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const css = getComputedStyle(document.documentElement);
+  const colors = ['--cyan', '--red', '--navy', '--white'].map(v => css.getPropertyValue(v).trim());
+  const bits = Array.from({ length: 150 }, (_, i) => {
+    const left = i % 2 === 0, a = (left ? -1 : 1) * (Math.PI / 5 + Math.random() * .7);
+    const v = 7 + Math.random() * 9;
+    return {
+      x: left ? 0 : innerWidth, y: innerHeight * .75,
+      vx: -Math.sin(a) * v, vy: -Math.cos(a) * v - 5,
+      w: 6 + Math.random() * 6, h: 4 + Math.random() * 6,
+      r: Math.random() * 6, vr: (Math.random() - .5) * .35,
+      c: colors[i % colors.length],
+    };
+  });
+  const t0 = performance.now();
+  (function tick(now) {
+    const age = now - t0;
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    ctx.globalAlpha = Math.max(0, 1 - Math.max(0, age - 1900) / 700);
+    for (const b of bits) {
+      b.vy += .22; b.vx *= .992; b.x += b.vx; b.y += b.vy; b.r += b.vr;
+      ctx.save();
+      ctx.translate(b.x, b.y); ctx.rotate(b.r);
+      ctx.fillStyle = b.c;
+      ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h * Math.abs(Math.cos(b.r * 2)));
+      ctx.restore();
+    }
+    if (age < 2600) requestAnimationFrame(tick); else cv.hidden = true;
+  })(t0);
+}
+function ghostFlyby() {
+  if (reduced()) return;
+  const d = document.createElement('div');
+  d.className = 'flyby';
+  d.append($('ghost-icon').cloneNode(true));
+  d.firstChild.removeAttribute('id');
+  d.addEventListener('animationend', () => d.remove());
+  document.body.append(d);
+}
+
 /* ---------- Play ---------- */
 function handleKey(id) {
   const g = game();
@@ -515,12 +627,14 @@ function handleKey(id) {
     if (!S.typed) return;
     S.typed = S.typed.slice(0, -1);
     setTile(tiles[g.guesses.length][S.typed.length], '', null);
+    markCursor();
     return save();
   }
   if (S.typed.length >= WORD_LEN) return;
   const t = tiles[g.guesses.length][S.typed.length];
   S.typed += id;
   setTile(t, id, 'tbd');
+  markCursor();
   if (!reduced()) retrigger(t, 'pop');
   save();
 }
@@ -530,8 +644,8 @@ function reject(msg) {
 }
 function submit() {
   const g = game(), word = S.typed;
-  if (word.length < WORD_LEN) return reject('Te weinig letters');
-  if (!VALID.has(word)) return reject('Staat niet in de woordenlijst');
+  if (word.length < WORD_LEN) return reject('Not enough letters');
+  if (!VALID.has(word)) return reject('Not in word list');
   if (S.settings.hard) {
     const err = hardModeError(word, g.guesses, g.answer);
     if (err) return reject(err);
@@ -544,6 +658,7 @@ function submit() {
   if (finished) { g.done = true; record(g); }
   save();
   busy = true;
+  markCursor();
   animateRow(r, word, g, finished);
 }
 function record(g) {
@@ -572,23 +687,31 @@ function animateRow(r, word, g, finished) {
   });
   setTimeout(() => {
     busy = false;
-    drawKeys(); drawGhost();
+    drawKeys(true); drawGhost(); markCursor();
     const list = ghostOn() ? ghostList(g) : [];
     if (ghostOn() && r < list.length) {
       retrigger($('ghost'), 'haunt');
-      if (list[r] === g.answer && !finished) toast(`Het spook heeft het woord in ${r + 1} geraden. Haal het nog in.`, 2800);
+      if (list[r] === g.answer && !finished) {
+        ghostFlyby();
+        toast(`The ghost solved it in ${r + 1}. You can still catch it.`, 2800);
+      }
     }
     if (finished) finish(g, r);
   }, (WORD_LEN - 1) * step + half * 2 + 20);
 }
-const PRAISE = ['Geniaal', 'Schitterend', 'Indrukwekkend', 'Knap gedaan', 'Goed zo', 'Op het nippertje'];
+const PRAISE = ['Genius', 'Magnificent', 'Impressive', 'Splendid', 'Great', 'Phew'];
 function finish(g, r) {
   const won = isWin(g);
   if (won) {
     toast(PRAISE[r], 1800);
+    confetti();
     if (!reduced()) tiles[r].forEach((t, c) => setTimeout(() => { t.classList.remove('flip'); t.classList.add('bounce'); }, c * 100));
-  } else toast(g.answer.toUpperCase(), 2600);
-  setTimeout(() => openStats(true), reduced() ? 400 : 1700);
+  } else {
+    toast(g.answer.toUpperCase(), 2600);
+    tiles[r].forEach(t => { t.classList.remove('flip'); t.classList.add('sink'); });
+    if (ghostOn() && ghostOutcome(g).result === 'lost') ghostFlyby();
+  }
+  setTimeout(() => openStats(true), reduced() ? 400 : 1900);
 }
 
 function setMode(mode) {
@@ -600,63 +723,74 @@ function setMode(mode) {
 }
 
 /* ---------- Dialogs ---------- */
+function countUp(el, target) {
+  if (reduced() || !target) { el.textContent = target; return; }
+  const t0 = performance.now();
+  (function tick(now) {
+    const p = Math.min(1, (now - t0) / 550);
+    el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
+    if (p < 1) requestAnimationFrame(tick);
+  })(t0);
+}
 function openStats(isEnd) {
   const g = game(), st = S.stats;
-  $('stats-title').textContent = g.done && isEnd ? (isWin(g) ? 'Geraden' : 'Niet geraden') : 'Statistieken';
+  $('stats-title').textContent = g.done && isEnd ? (isWin(g) ? 'Solved' : 'Not solved') : 'Statistics';
   const res = $('result');
   res.textContent = '';
   if (g.done) {
     if (ghostOn()) {
       const o = ghostOutcome(g), v = document.createElement('p');
       v.className = 'verdict';
-      const ghostTxt = o.ghostTries > MAX_TRIES ? 'het spook vond het niet' : `het spook had er ${o.ghostTries} nodig`;
-      const mine = o.myTries > MAX_TRIES ? 'Jij vond het woord niet' : `Jij had ${o.myTries} ${o.myTries === 1 ? 'poging' : 'pogingen'} nodig`;
-      const end = o.result === 'won' ? 'Spook verslagen.' : o.result === 'lost' ? 'Het spook wint.' : 'Gelijkspel.';
+      const ghostTxt = o.ghostTries > MAX_TRIES ? 'the ghost missed it' : `the ghost took ${o.ghostTries}`;
+      const mine = o.myTries > MAX_TRIES ? 'You missed it' : `You took ${o.myTries}`;
+      const end = o.result === 'won' ? 'Ghost beaten.' : o.result === 'lost' ? 'The ghost wins.' : 'A draw.';
       v.textContent = `${mine}, ${ghostTxt}. ${end}`;
       res.append(v);
       const words = document.createElement('div');
       words.className = 'ghost-words';
-      words.setAttribute('aria-label', 'Woorden van het spook: ' + ghostList(g).join(', '));
-      for (const w of ghostList(g)) {
+      words.setAttribute('aria-label', 'Ghost guesses: ' + ghostList(g).join(', '));
+      ghostList(g).forEach((w, n) => {
         const line = document.createElement('div');
+        line.style.setProperty('--i', n);
         evaluate(w, g.answer).forEach((s, i) => {
           const c = document.createElement('span');
           c.className = 'tile'; c.dataset.state = s; c.textContent = w[i];
           line.append(c);
         });
         words.append(line);
-      }
+      });
       const h = document.createElement('h3');
-      h.textContent = 'Dit raadde het spook';
+      h.textContent = 'The ghost tried';
       res.append(h, words);
       const hs = document.createElement('h3');
-      hs.textContent = 'Jouw spel';
+      hs.textContent = 'Your game';
       res.append(hs);
     }
     const a = document.createElement('p');
-    a.innerHTML = `Het woord was <b>${g.answer.toUpperCase()}</b>.`;
+    a.innerHTML = `The word was <b>${g.answer.toUpperCase()}</b>.`;
     res.append(a);
   }
   const pct = st.played ? Math.round((st.wins / st.played) * 100) : 0;
-  $('stat-grid').innerHTML = [[st.played, 'Gespeeld'], [pct, '% gewonnen'], [st.streak, 'Reeks'], [st.maxStreak, 'Langste reeks']]
-    .map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('');
+  const grid = [[st.played, 'Played'], [pct, 'Win %'], [st.streak, 'Streak'], [st.maxStreak, 'Best streak']];
+  $('stat-grid').innerHTML = grid.map(([, l]) => `<div><b>0</b><span>${l}</span></div>`).join('');
+  [...$('stat-grid').querySelectorAll('b')].forEach((b, i) => countUp(b, grid[i][0]));
   const max = Math.max(1, ...st.dist);
   const nowRow = S.mode === 'daily' && g.done && isWin(g) ? g.guesses.length - 1 : -1;
   $('dist').innerHTML = st.dist.map((n, i) =>
-    `<div><span>${i + 1}</span><span class="bar${i === nowRow ? ' now' : ''}" style="--w:${Math.max(6, (n / max) * 100)}%">${n}</span></div>`).join('');
+    `<div><span>${i + 1}</span><span class="bar${i === nowRow ? ' now' : ''}" style="--w:${Math.max(6, (n / max) * 100)}%;--i:${i}">${n}</span></div>`).join('');
   $('ghost-record').textContent = st.ghostWon + st.ghostTied + st.ghostLost
-    ? `Tegen het spook: ${st.ghostWon} gewonnen, ${st.ghostTied} gelijk, ${st.ghostLost} verloren.` : '';
+    ? `Against the ghost: ${st.ghostWon} won, ${st.ghostTied} drawn, ${st.ghostLost} lost.` : '';
   $('ghost-record').hidden = !$('ghost-record').textContent;
   updateCountdown();
 
   const actions = $('actions');
   actions.textContent = '';
-  if (g.done) actions.append(button('Uitslag kopiëren', '', copyResult));
+  if (g.done) actions.append(button('Copy result', '', copyResult));
   if (S.mode === 'practice') {
-    if (g.done) actions.append(button('Nieuw oefenwoord', 'alt', () => { newPractice(); S.typed = ''; drawAll(); save(); $('dlg-stats').close(); }));
-    actions.append(button('Terug naar dagwoord', 'alt', () => { setMode('daily'); $('dlg-stats').close(); }));
+    if (g.done) actions.append(button('New practice word', 'alt', () => { newPractice(); S.typed = ''; drawAll(); save(); $('dlg-stats').close(); }));
+    actions.append(button('Back to daily word', 'alt', () => { setMode('daily'); $('dlg-stats').close(); }));
   } else if (g.done) {
-    actions.append(button('Oefenwoord spelen', 'alt', () => { if (!S.practice || S.practice.done) newPractice(); setMode('practice'); $('dlg-stats').close(); }));
+    actions.append(button('Play a practice word', 'alt', () => { if (!S.practice || S.practice.done) newPractice(); setMode('practice'); $('dlg-stats').close(); }));
   }
   $('share-fallback').hidden = true;
   showDialog('dlg-stats');
@@ -672,21 +806,20 @@ function updateCountdown() {
   const d = new Date(), end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
   const s = Math.max(0, Math.floor((end - d) / 1000));
   const p = n => String(n).padStart(2, '0');
-  el.textContent = `Volgend dagwoord over ${p(Math.floor(s / 3600))}:${p(Math.floor(s / 60) % 60)}:${p(s % 60)}`;
+  el.textContent = `Next daily word in ${p(Math.floor(s / 3600))}:${p(Math.floor(s / 60) % 60)}:${p(s % 60)}`;
 }
 function resultText() {
   const g = game(), hc = S.settings.hc;
-  const dark = getComputedStyle(document.documentElement).colorScheme.includes('dark');
-  const sq = { correct: hc ? '🟧' : '🟩', present: hc ? '🟦' : '🟨', absent: dark ? '⬛' : '⬜' };
+  const sq = { correct: hc ? '🟨' : '🟦', present: hc ? '🟧' : '🟥', absent: effectiveDark() ? '⬛' : '⬜' };
   const score = isWin(g) ? g.guesses.length : 'X';
-  const head = `Zeslet ${S.mode === 'daily' ? g.day : 'oefenwoord'} ${score}/${MAX_TRIES}${g.hard ? '*' : ''}`;
+  const head = `Quint ${S.mode === 'daily' ? g.day : 'practice'} ${score}/${MAX_TRIES}${g.hard ? '*' : ''}`;
   const lines = g.guesses.map(w => evaluate(w, g.answer).map(s => sq[s]).join(''));
   let txt = head + '\n\n' + lines.join('\n');
   if (ghostOn()) {
     const o = ghostOutcome(g);
     const ghostScore = o.ghostTries > MAX_TRIES ? 'X' : o.ghostTries;
-    const end = o.result === 'won' ? 'verslagen' : o.result === 'lost' ? 'won van mij' : 'gelijkspel';
-    txt += `\n\n👻 Spook ${ghostScore}/${MAX_TRIES}: ${end}`;
+    const end = o.result === 'won' ? 'beaten' : o.result === 'lost' ? 'it won' : 'a draw';
+    txt += `\n\n👻 Ghost ${ghostScore}/${MAX_TRIES}: ${end}`;
   }
   return txt;
 }
@@ -696,10 +829,10 @@ function copyResult() {
     const area = $('share-fallback');
     area.value = text; area.hidden = false;
     area.focus(); area.select();
-    toast('Selecteer de tekst en kopieer hem zelf');
+    toast('Select the text and copy it yourself');
   };
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(() => toast('Uitslag gekopieerd'), fb);
+    navigator.clipboard.writeText(text).then(() => toast('Result copied'), fb);
   } else fb();
 }
 function showDialog(id) {
@@ -715,8 +848,6 @@ function applyTheme() {
 }
 function effectiveDark() {
   if (S.settings.theme) return S.settings.theme === 'dark';
-  const attr = document.documentElement.dataset.theme;
-  if (attr) return attr === 'dark';
   return matchMedia('(prefers-color-scheme: dark)').matches;
 }
 function openSettings() {
@@ -731,7 +862,7 @@ function bindSettings() {
     const g = game();
     if (g.guesses.length && !g.done) {
       e.target.checked = S.settings.hard;
-      return toast('Dit kan alleen aan het begin van een spel');
+      return toast('You can only change this at the start of a game');
     }
     S.settings.hard = e.target.checked; save();
   });
@@ -741,12 +872,10 @@ function bindSettings() {
 }
 
 /* ---------- Start ---------- */
-function start(data) {
-  S = data && data.state ? data.state : load();
+function start() {
+  S = load();
   ensureDaily();
   if (S.mode === 'practice' && !S.practice) S.mode = 'daily';
-
-  window.claude?.hot?.snapshot?.(() => ({ state: S }));
 
   applyTheme();
   buildBoard();
@@ -758,7 +887,7 @@ function start(data) {
   $('btn-settings').addEventListener('click', openSettings);
   $('btn-mode').addEventListener('click', () => {
     setMode(S.mode === 'daily' ? 'practice' : 'daily');
-    toast(S.mode === 'practice' ? 'Oefenen telt niet mee in je statistieken' : 'Terug naar het dagwoord');
+    toast(S.mode === 'practice' ? 'Practice games do not count in your statistics' : 'Back to the daily word');
   });
   $('ghost').addEventListener('click', () => showDialog('dlg-help'));
 
@@ -771,13 +900,14 @@ function start(data) {
   document.addEventListener('keydown', e => {
     if (e.ctrlKey || e.metaKey || e.altKey || document.querySelector('dialog[open]')) return;
     const focused = document.activeElement && document.activeElement.closest && document.activeElement.closest('header button, #ghost');
+    const flash = id => { if (!reduced() && keyEls[id]) retrigger(keyEls[id], 'press'); };
     if (e.key === 'Enter') {
       if (focused) return;
-      e.preventDefault(); handleKey('enter');
+      e.preventDefault(); flash('enter'); handleKey('enter');
     } else if (e.key === 'Backspace') {
-      e.preventDefault(); handleKey('back');
+      e.preventDefault(); flash('back'); handleKey('back');
     } else if (/^[a-zA-Z]$/.test(e.key)) {
-      handleKey(e.key.toLowerCase());
+      flash(e.key.toLowerCase()); handleKey(e.key.toLowerCase());
     }
   });
 
@@ -785,18 +915,20 @@ function start(data) {
   sizeBoard();
   drawAll();
 
+  $('board').classList.add('enter');
+  setTimeout(() => $('board').classList.remove('enter'), 1100);
+
   setInterval(() => {
     if ($('dlg-stats').open) updateCountdown();
     if (S.daily.day !== today() && !busy) { ensureDaily(); if (S.mode === 'daily') drawAll(); save(); }
   }, 1000);
 
-  const restored = !!(data && data.state);
   if (!S.seenHelp) { S.seenHelp = true; showDialog('dlg-help'); }
-  else if (!restored && game().done) setTimeout(() => openStats(true), 500);
+  else if (game().done) setTimeout(() => openStats(true), 700);
   save();
 }
 
-window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+start();
 </script>
 </body>
 </html>
