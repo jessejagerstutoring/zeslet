@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zeslet</title>
+<meta name="description" content="Raad elke dag een Nederlands woord van zes letters in zes pogingen, in een race tegen een spook.">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@900&family=Libre+Franklin:wght@400;600;700;800&display=swap">
+<style>
+/* Layout: one screen. Header, ghost track + square board in the flexible middle, keyboard pinned below. */
+:root {
+  --bg: #ffffff; --fg: #1a1a1b; --muted: #5f6368; --line: #d3d6da; --line-strong: #878a8c;
+  --key: #d3d6da; --key-fg: #1a1a1b; --surface: #ffffff; --shade: rgba(255,255,255,.55);
+  --correct: #6aaa64; --present: #c9b458; --absent: #787c7e;
+  --on-correct: #ffffff; --on-present: #ffffff; --on-absent: #ffffff;
+  --toast-bg: #1a1a1b; --toast-fg: #ffffff; --empty-mini: #e9eaec;
+  --display: "Frank Ruhl Libre", Georgia, "Times New Roman", serif;
+  --body: "Libre Franklin", "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121213; --fg: #f8f8f8; --muted: #a5a7aa; --line: #3a3a3c; --line-strong: #565758;
+    --key: #818384; --key-fg: #ffffff; --surface: #1c1c1e; --shade: rgba(0,0,0,.55);
+    --correct: #538d4e; --present: #b59f3b; --absent: #3a3a3c;
+    --toast-bg: #f8f8f8; --toast-fg: #121213; --empty-mini: #2a2a2c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121213; --fg: #f8f8f8; --muted: #a5a7aa; --line: #3a3a3c; --line-strong: #565758;
+  --key: #818384; --key-fg: #ffffff; --surface: #1c1c1e; --shade: rgba(0,0,0,.55);
+  --correct: #538d4e; --present: #b59f3b; --absent: #3a3a3c;
+  --toast-bg: #f8f8f8; --toast-fg: #121213; --empty-mini: #2a2a2c;
+  color-scheme: dark;
+}
+:root.hc { --correct: #f5793a; --present: #85c0f9; --on-present: #10233a; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+:root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+html, body { height: 100%; }
+body {
+  margin: 0; font-size: 14px;
+  background: var(--bg); color: var(--fg); font-family: var(--body);
+  overflow: hidden; -webkit-tap-highlight-color: transparent;
+}
+button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
+:focus-visible { outline: 2px solid var(--line-strong); outline-offset: 2px; }
+
+#app {
+  height: 100%; display: flex; flex-direction: column; gap: 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 8px;
+}
+
+header {
+  flex: none; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  height: 56px; border-bottom: 1px solid var(--line);
+}
+.tools { display: flex; gap: 2px; }
+.tools.right { justify-content: flex-end; }
+.icon-btn {
+  width: 38px; height: 38px; display: grid; place-items: center;
+  background: none; border: 0; border-radius: 6px; padding: 0;
+}
+.icon-btn:hover { background: var(--empty-mini); }
+.icon-btn[aria-pressed="true"] { background: var(--correct); color: var(--on-correct); }
+.icon-btn svg { width: 22px; height: 22px; }
+.brand { text-align: center; line-height: 1; }
+.brand h1 { margin: 0; font: 900 clamp(24px, 7vw, 32px)/1 var(--display); letter-spacing: .02em; }
+.brand p {
+  margin: 3px 0 0; font-size: 10px; font-weight: 600; color: var(--muted);
+  letter-spacing: .08em; text-transform: uppercase; white-space: nowrap;
+}
+
+main { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+#board-wrap { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+
+#ghost {
+  flex: none; width: var(--size, 320px); display: flex; align-items: center; gap: 8px;
+  background: none; border: 0; padding: 2px 0; color: var(--muted);
+}
+#ghost svg { flex: none; width: 18px; height: 18px; }
+#ghost .label { font-size: 12px; font-weight: 700; }
+#ghost-track { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.mini-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px; }
+.mini-row i { display: block; aspect-ratio: 1; background: var(--empty-mini); border-radius: 1px; }
+.mini-row i[data-state="correct"] { background: var(--correct); }
+.mini-row i[data-state="present"] { background: var(--present); }
+.mini-row i[data-state="absent"] { background: var(--absent); }
+#ghost.haunt svg { animation: haunt .5s ease; }
+@keyframes haunt { 30% { transform: translateY(-4px) rotate(-10deg); } 70% { transform: translateY(-2px) rotate(8deg); } }
+
+#board { flex: none; width: var(--size, 320px); height: var(--size, 320px); display: grid; grid-template-rows: repeat(6, 1fr); gap: 5px; }
+.row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; min-height: 0; }
+.row.shake { animation: shake .5s; }
+@keyframes shake {
+  10%,90% { transform: translateX(-1px); } 20%,80% { transform: translateX(2px); }
+  30%,50%,70% { transform: translateX(-4px); } 40%,60% { transform: translateX(4px); }
+}
+.tile {
+  display: grid; place-items: center; min-height: 0;
+  border: 2px solid var(--line); font-weight: 800; user-select: none;
+  font-size: calc(var(--size, 320px) / 6 * .52); line-height: 1; text-transform: uppercase;
+}
+.tile[data-state="tbd"] { border-color: var(--line-strong); }
+.tile[data-state="correct"] { background: var(--correct); border-color: var(--correct); color: var(--on-correct); }
+.tile[data-state="present"] { background: var(--present); border-color: var(--present); color: var(--on-present); }
+.tile[data-state="absent"] { background: var(--absent); border-color: var(--absent); color: var(--on-absent); }
+.tile.pop { animation: pop .1s; }
+@keyframes pop { 50% { transform: scale(1.1); } }
+.tile.flip { animation: flip .46s ease; }
+@keyframes flip { 0%,100% { transform: rotateX(0); } 50% { transform: rotateX(-90deg); } }
+.tile.bounce { animation: bounce .9s; }
+@keyframes bounce {
+  0%,20% { transform: translateY(0); } 40% { transform: translateY(-30%); }
+  50% { transform: translateY(4%); } 60% { transform: translateY(-12%); }
+  80% { transform: translateY(2%); } 100% { transform: translateY(0); }
+}
+
+#keyboard { flex: none; width: 100%; max-width: 500px; margin-inline: auto; display: flex; flex-direction: column; gap: 6px; }
+.key-row { display: flex; gap: 5px; justify-content: center; }
+.key {
+  flex: 1 1 0; min-width: 0; height: 56px; border: 0; border-radius: 4px; padding: 0;
+  background: var(--key); color: var(--key-fg);
+  font-weight: 700; font-size: 14px; text-transform: uppercase;
+  display: grid; place-items: center;
+}
+.key.wide { flex: 1.55 1 0; font-size: 11px; }
+.key svg { width: 22px; height: 22px; }
+.key[data-state="correct"] { background: var(--correct); color: var(--on-correct); }
+.key[data-state="present"] { background: var(--present); color: var(--on-present); }
+.key[data-state="absent"] { background: var(--absent); color: var(--on-absent); }
+.spacer { flex: .5 1 0; }
+@media (max-height: 680px) { .key { height: 46px; } header { height: 48px; } }
+@media (max-height: 560px) { .key { height: 38px; } }
+
+#toasts {
+  position: fixed; z-index: 30; left: 0; right: 0;
+  top: calc(64px + env(safe-area-inset-top, 0px));
+  display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none;
+}
+.toast { background: var(--toast-bg); color: var(--toast-fg); font-weight: 700; font-size: 14px; padding: 10px 14px; border-radius: 4px; max-width: calc(100vw - 32px); text-align: center; }
+
+dialog {
+  width: min(500px, calc(100vw - 32px)); max-height: calc(100% - 32px); overflow: auto;
+  padding: 20px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--surface); color: var(--fg); box-shadow: 0 8px 28px rgba(0,0,0,.25);
+}
+dialog::backdrop { background: var(--shade); }
+.dlg-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+dialog h2 { margin: 0; font: 900 26px/1.1 var(--display); text-wrap: balance; }
+dialog h3 { margin: 18px 0 8px; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+dialog p, dialog li { font-size: 15px; line-height: 1.5; }
+dialog p { margin: 0 0 10px; }
+dialog ul { margin: 0 0 10px; padding-left: 20px; }
+dialog a { color: inherit; }
+.example { display: grid; grid-template-columns: repeat(6, 34px); gap: 4px; margin: 12px 0 4px; }
+.example .tile { height: 34px; font-size: 18px; }
+.small { font-size: 13px; color: var(--muted); }
+
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; font-variant-numeric: tabular-nums; }
+.stat-grid b { display: block; font-size: 30px; font-weight: 600; line-height: 1.1; }
+.stat-grid span { font-size: 11px; line-height: 1.2; display: block; }
+.dist { display: grid; gap: 4px; font-variant-numeric: tabular-nums; }
+.dist div { display: grid; grid-template-columns: 12px 1fr; gap: 6px; align-items: center; font-size: 13px; font-weight: 600; }
+.bar { display: block; background: var(--absent); color: var(--on-absent); text-align: right; padding: 1px 7px; min-width: 22px; width: var(--w, 0%); font-weight: 700; }
+.bar.now { background: var(--correct); color: var(--on-correct); }
+.verdict { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+.ghost-words { display: grid; gap: 3px; }
+.ghost-words div { display: grid; grid-template-columns: repeat(6, 24px); gap: 2px; }
+.ghost-words .tile { height: 24px; font-size: 13px; border-width: 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.btn { flex: 1 1 150px; min-height: 46px; border: 0; border-radius: 24px; font-weight: 700; font-size: 15px; background: var(--correct); color: var(--on-correct); padding: 8px 16px; }
+.btn.alt { background: none; border: 1px solid var(--line-strong); color: var(--fg); }
+#share-fallback { width: 100%; height: 130px; margin-top: 10px; font: 14px/1.3 var(--body); background: var(--bg); color: var(--fg); border: 1px solid var(--line); padding: 8px; }
+
+.setting { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.setting label { flex: 1; min-width: 0; cursor: pointer; }
+.setting strong { display: block; font-size: 15px; font-weight: 600; }
+.setting span { display: block; font-size: 12px; color: var(--muted); }
+.setting input { flex: none; width: 42px; height: 24px; appearance: none; -webkit-appearance: none; margin: 0; border-radius: 12px; background: var(--line-strong); position: relative; cursor: pointer; transition: background .15s; }
+.setting input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #ffffff; transition: transform .15s; }
+.setting input:checked { background: var(--correct); }
+.setting input:checked::after { transform: translateX(18px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tile.pop, .tile.flip, .tile.bounce, .row.shake, #ghost.haunt svg { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="tools">
+      <button class="icon-btn" id="btn-help" aria-label="Uitleg" title="Uitleg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.6 2.6 0 1 1 3.9 2.3c-.9.5-1.4 1.1-1.4 2.2"/><path d="M12 17h.01"/></svg></button>
+      <button class="icon-btn" id="btn-mode" aria-label="Oefenen" aria-pressed="false" title="Oefenen met een willekeurig woord"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01"/></svg></button>
+    </div>
+    <div class="brand"><h1>Zeslet</h1><p id="subtitle"></p></div>
+    <div class="tools right">
+      <button class="icon-btn" id="btn-stats" aria-label="Statistieken" title="Statistieken"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20v-6M12 20V5M19 20v-10"/></svg></button>
+      <button class="icon-btn" id="btn-settings" aria-label="Instellingen" title="Instellingen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h9M18 7h2M4 17h2M11 17h9"/><circle cx="15.5" cy="7" r="2.5"/><circle cx="8.5" cy="17" r="2.5"/></svg></button>
+    </div>
+  </header>
+
+  <main>
+    <div id="board-wrap">
+      <button id="ghost" aria-label="Wat is het spook?" title="Het spook raadt mee. Je ziet alleen zijn kleuren.">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M4 22V10a8 8 0 0 1 16 0v12l-3-2.2L14.5 22 12 19.8 9.500 22 7 19.800zM9 8.500a1.500 1.500 0 1 0 0 3 1.500 1.500 0 0 0 0-3zm6 0a1.500 1.500 0 1 0 0 3 1.500 1.500 0 0 0 0-3z"/></svg>
+        <span class="label">Spook</span>
+        <span id="ghost-track"></span>
+      </button>
+      <div id="board" role="grid" aria-label="Speelbord"></div>
+    </div>
+    <div id="keyboard" aria-label="Toetsenbord"></div>
+  </main>
+</div>
+<div id="toasts" aria-live="polite"></div>
+
+<dialog id="dlg-help">
+  <div class="dlg-top"><h2>Zo speel je</h2><button class="icon-btn close" aria-label="Sluiten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <p>Raad het Nederlandse woord van zes letters in zes pogingen. Elke dag is er een nieuw woord, voor iedereen hetzelfde.</p>
+  <ul>
+    <li>Elke poging moet een bestaand woord van zes letters zijn.</li>
+    <li>IJ telt als twee letters: I en J.</li>
+    <li>De kleuren laten zien hoe dicht je bij het woord zit.</li>
+  </ul>
+  <div class="example" aria-hidden="true"><span class="tile" data-state="correct">K</span><span class="tile">A</span><span class="tile">C</span><span class="tile">H</span><span class="tile">E</span><span class="tile">L</span></div>
+  <p class="correct-txt"><b>K</b> staat op de juiste plek.</p>
+  <div class="example" aria-hidden="true"><span class="tile">M</span><span class="tile">O</span><span class="tile" data-state="present">L</span><span class="tile">E</span><span class="tile">N</span><span class="tile">S</span></div>
+  <p><b>L</b> zit in het woord, maar op een andere plek.</p>
+  <div class="example" aria-hidden="true"><span class="tile">W</span><span class="tile">I</span><span class="tile">N</span><span class="tile">T</span><span class="tile" data-state="absent">E</span><span class="tile">R</span></div>
+  <p><b>E</b> zit niet in het woord.</p>
+  <h3>Het spook</h3>
+  <p>Je speelt niet alleen. Na elke poging van jou raadt het spook ook een woord. Boven het bord zie je alleen zijn kleuren, niet zijn letters. Heb jij het woord in minder pogingen, dan versla je het spook. Aan het eind zie je welke woorden het probeerde.</p>
+  <p>Iedereen speelt op dezelfde dag tegen hetzelfde spook. Je kunt het uitzetten bij de instellingen.</p>
+  <p class="small">Woordenlijst: <a href="https://github.com/OpenTaal/opentaal-wordlist" target="_blank" rel="noopener">OpenTaal</a>, onder BSD- en CC BY 3.0-licentie.</p>
+</dialog>
+
+<dialog id="dlg-stats">
+  <div class="dlg-top"><h2 id="stats-title">Statistieken</h2><button class="icon-btn close" aria-label="Sluiten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="result"></div>
+  <div class="stat-grid" id="stat-grid"></div>
+  <h3>Verdeling van pogingen</h3>
+  <div class="dist" id="dist"></div>
+  <p class="small" id="ghost-record" style="margin-top:12px"></p>
+  <p class="small" id="next-word"></p>
+  <div class="actions" id="actions"></div>
+  <textarea id="share-fallback" readonly hidden aria-label="Uitslag om te kopiëren"></textarea>
+</dialog>
+
+<dialog id="dlg-settings">
+  <div class="dlg-top"><h2>Instellingen</h2><button class="icon-btn close" aria-label="Sluiten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="setting"><label for="set-hard"><strong>Moeilijke modus</strong><span>Gevonden letters moet je in je volgende pogingen gebruiken</span></label><input type="checkbox" id="set-hard"></div>
+  <div class="setting"><label for="set-ghost"><strong>Spook</strong><span>Speel tegen een tegenstander die alleen zijn kleuren laat zien</span></label><input type="checkbox" id="set-ghost"></div>
+  <div class="setting"><label for="set-dark"><strong>Donker thema</strong><span>Prettig voor de ogen in het donker</span></label><input type="checkbox" id="set-dark"></div>
+  <div class="setting"><label for="set-hc"><strong>Hoog contrast</strong><span>Oranje en blauw, voor beter kleurzicht</span></label><input type="checkbox" id="set-hc"></div>
+</dialog>
+
+<script src="woorden.js"></script>
+<script>
+/* ENGINE-START */
+const WORD_LEN = 6, MAX_TRIES = 6;
+
+function evaluate(guess, answer) {
+  const res = Array(WORD_LEN).fill('absent');
+  const left = {};
+  for (let i = 0; i < WORD_LEN; i++) {
+    if (guess[i] === answer[i]) res[i] = 'correct';
+    else left[answer[i]] = (left[answer[i]] || 0) + 1;
+  }
+  for (let i = 0; i < WORD_LEN; i++) {
+    if (res[i] !== 'correct' && left[guess[i]] > 0) { res[i] = 'present'; left[guess[i]]--; }
+  }
+  return res;
+}
+
+function mulberry(seed) {
+  return () => {
+    seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* The ghost guesses a random word that fits everything it has seen so far. */
+function ghostPlay(answer, pool, seed) {
+  const rng = mulberry(seed), guesses = [];
+  let cands = pool;
+  for (let i = 0; i < MAX_TRIES; i++) {
+    const pick = cands[Math.floor(rng() * cands.length)];
+    guesses.push(pick);
+    if (pick === answer) break;
+    const pat = evaluate(pick, answer).join();
+    cands = cands.filter(w => w !== pick && evaluate(pick, w).join() === pat);
+  }
+  return guesses;
+}
+
+/* Returns a message if the guess ignores hints from earlier guesses, otherwise null. */
+function hardModeError(guess, previous, answer) {
+  for (const prev of previous) {
+    const pat = evaluate(prev, answer);
+    for (let i = 0; i < WORD_LEN; i++) {
+      if (pat[i] === 'correct' && guess[i] !== prev[i]) return `Letter ${i + 1} moet een ${prev[i].toUpperCase()} zijn`;
+    }
+    const need = {};
+    for (let i = 0; i < WORD_LEN; i++) if (pat[i] !== 'absent') need[prev[i]] = (need[prev[i]] || 0) + 1;
+    for (const l in need) {
+      if (guess.split(l).length - 1 < need[l]) return `Je moet de ${l.toUpperCase()} gebruiken`;
+    }
+  }
+  return null;
+}
+
+function dayNumber(d) {
+  return Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(2026, 10, 3)) / 86400000) + 1;
+}
+function dailyAnswer(n, answers) {
+  return answers[((n - 1) % answers.length + answers.length) % answers.length];
+}
+/* ENGINE-END */
+
+const ANSWERS = window.ZESLET_ANTWOORDEN.split(' ');
+const POOL = window.ZESLET_WOORDEN.split(' ');
+const VALID = new Set(POOL);
+const STORE_KEY = 'zeslet.v1';
+const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+
+const freshState = () => ({
+  mode: 'daily', seenHelp: false, typed: '',
+  settings: { hard: false, ghost: true, hc: false, theme: null },
+  daily: null, practice: null,
+  stats: { played: 0, wins: 0, streak: 0, maxStreak: 0, lastWinDay: null, dist: [0,0,0,0,0,0], ghostWon: 0, ghostTied: 0, ghostLost: 0 },
+});
+
+let S, busy = false, ghostCache = { key: null, list: [] }, tiles = [], rows = [], keyEls = {};
+
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} }
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const d = JSON.parse(raw), f = freshState();
+      return { ...f, ...d, settings: { ...f.settings, ...d.settings }, stats: { ...f.stats, ...d.stats } };
+    }
+  } catch (e) {}
+  return freshState();
+}
+
+const today = () => dayNumber(new Date());
+function ensureDaily() {
+  const n = today();
+  if (!S.daily || S.daily.day !== n) {
+    S.daily = { day: n, answer: dailyAnswer(n, ANSWERS), seed: n * 7919, guesses: [], hard: false, done: false, recorded: false };
+    if (S.mode === 'daily') S.typed = '';
+  }
+  if (S.stats.lastWinDay !== null && S.stats.lastWinDay < n - 1 && S.stats.streak > 0) S.stats.streak = 0;
+}
+function newPractice() {
+  S.practice = {
+    answer: ANSWERS[Math.floor(Math.random() * ANSWERS.length)],
+    seed: Math.floor(Math.random() * 1e9), guesses: [], hard: false, done: false,
+  };
+}
+const game = () => (S.mode === 'daily' ? S.daily : S.practice);
+const isWin = g => g.guesses[g.guesses.length - 1] === g.answer;
+const ghostOn = () => S.settings.ghost;
+function ghostList(g) {
+  const key = g.answer + g.seed;
+  if (ghostCache.key !== key) ghostCache = { key, list: ghostPlay(g.answer, POOL, g.seed) };
+  return ghostCache.list;
+}
+/* Compares tries: an unsolved game counts as 7. */
+function ghostOutcome(g) {
+  const list = ghostList(g);
+  const ghostTries = list[list.length - 1] === g.answer ? list.length : MAX_TRIES + 1;
+  const myTries = isWin(g) ? g.guesses.length : MAX_TRIES + 1;
+  return { ghostTries, myTries, result: myTries < ghostTries ? 'won' : myTries > ghostTries ? 'lost' : 'tied' };
+}
+
+/* ---------- Drawing ---------- */
+function buildBoard() {
+  const board = $('board');
+  board.textContent = '';
+  rows = []; tiles = [];
+  for (let r = 0; r < MAX_TRIES; r++) {
+    const row = document.createElement('div');
+    row.className = 'row'; row.setAttribute('role', 'row');
+    tiles[r] = [];
+    for (let c = 0; c < WORD_LEN; c++) {
+      const t = document.createElement('div');
+      t.className = 'tile'; t.setAttribute('role', 'gridcell');
+      row.append(t); tiles[r][c] = t;
+    }
+    board.append(row); rows[r] = row;
+  }
+  const track = $('ghost-track');
+  track.textContent = '';
+  for (let r = 0; r < MAX_TRIES; r++) {
+    const m = document.createElement('span');
+    m.className = 'mini-row';
+    for (let c = 0; c < WORD_LEN; c++) m.append(document.createElement('i'));
+    track.append(m);
+  }
+}
+function buildKeyboard() {
+  const kb = $('keyboard');
+  const layout = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+  layout.forEach((line, i) => {
+    const row = document.createElement('div');
+    row.className = 'key-row';
+    if (i === 1) row.append(Object.assign(document.createElement('span'), { className: 'spacer' }));
+    if (i === 2) row.append(makeKey('enter', 'Enter', true));
+    for (const ch of line) row.append(makeKey(ch, ch));
+    if (i === 1) row.append(Object.assign(document.createElement('span'), { className: 'spacer' }));
+    if (i === 2) {
+      const back = makeKey('back', '', true);
+      back.setAttribute('aria-label', 'Letter wissen');
+      back.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M9 5h11v14H9l-6-7zM13 10l4 4M17 10l-4 4"/></svg>';
+      row.append(back);
+    }
+    kb.append(row);
+  });
+}
+function makeKey(id, label, wide) {
+  const b = document.createElement('button');
+  b.className = 'key' + (wide ? ' wide' : '');
+  b.textContent = label; b.type = 'button';
+  b.addEventListener('click', () => { handleKey(id); b.blur(); });
+  keyEls[id] = b;
+  return b;
+}
+function setTile(t, letter, state) {
+  t.textContent = letter;
+  if (state) t.dataset.state = state; else delete t.dataset.state;
+  t.setAttribute('aria-label', letter ? `${letter.toUpperCase()}${state && state !== 'tbd' ? ', ' + ({ correct: 'juiste plek', present: 'andere plek', absent: 'niet in het woord' })[state] : ''}` : 'leeg');
+}
+function drawBoard() {
+  const g = game();
+  for (let r = 0; r < MAX_TRIES; r++) {
+    const word = g.guesses[r], pat = word ? evaluate(word, g.answer) : null;
+    const active = !word && r === g.guesses.length && !g.done;
+    for (let c = 0; c < WORD_LEN; c++) {
+      const t = tiles[r][c];
+      t.classList.remove('flip', 'pop', 'bounce');
+      if (word) setTile(t, word[c], pat[c]);
+      else if (active && S.typed[c]) setTile(t, S.typed[c], 'tbd');
+      else setTile(t, '', null);
+    }
+  }
+}
+function drawKeys() {
+  const g = game(), rank = { absent: 1, present: 2, correct: 3 }, best = {};
+  for (const w of g.guesses) evaluate(w, g.answer).forEach((s, i) => {
+    if (!best[w[i]] || rank[s] > rank[best[w[i]]]) best[w[i]] = s;
+  });
+  for (const id in keyEls) {
+    if (id.length > 1) continue;
+    if (best[id]) keyEls[id].dataset.state = best[id]; else delete keyEls[id].dataset.state;
+  }
+}
+function drawGhost() {
+  const el = $('ghost');
+  el.hidden = !ghostOn();
+  if (!ghostOn()) { sizeBoard(); return; }
+  const g = game(), list = ghostList(g);
+  const shown = Math.min(g.guesses.length, list.length);
+  [...$('ghost-track').children].forEach((m, r) => {
+    const pat = r < shown ? evaluate(list[r], g.answer) : null;
+    [...m.children].forEach((sq, c) => {
+      if (pat) sq.dataset.state = pat[c]; else delete sq.dataset.state;
+    });
+  });
+  sizeBoard();
+}
+function drawChrome() {
+  const g = game();
+  $('subtitle').textContent = S.mode === 'daily' ? `Dagwoord ${g.day}` : 'Oefenwoord';
+  $('btn-mode').setAttribute('aria-pressed', S.mode === 'practice' ? 'true' : 'false');
+}
+function drawAll() { drawBoard(); drawKeys(); drawGhost(); drawChrome(); }
+
+function sizeBoard() {
+  const wrap = $('board-wrap');
+  const stripH = ghostOn() ? $('ghost').offsetHeight + 8 : 0;
+  const size = Math.max(180, Math.min(wrap.clientWidth, wrap.clientHeight - stripH, 440));
+  document.documentElement.style.setProperty('--size', size + 'px');
+}
+
+function toast(msg, ms = 1500) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  $('toasts').prepend(t);
+  setTimeout(() => t.remove(), ms);
+}
+function retrigger(el, cls) {
+  el.classList.remove(cls);
+  void el.offsetWidth;
+  el.classList.add(cls);
+}
+
+/* ---------- Play ---------- */
+function handleKey(id) {
+  const g = game();
+  if (busy || g.done) return;
+  if (id === 'enter') return submit();
+  if (id === 'back') {
+    if (!S.typed) return;
+    S.typed = S.typed.slice(0, -1);
+    setTile(tiles[g.guesses.length][S.typed.length], '', null);
+    return save();
+  }
+  if (S.typed.length >= WORD_LEN) return;
+  const t = tiles[g.guesses.length][S.typed.length];
+  S.typed += id;
+  setTile(t, id, 'tbd');
+  if (!reduced()) retrigger(t, 'pop');
+  save();
+}
+function reject(msg) {
+  toast(msg);
+  retrigger(rows[game().guesses.length], 'shake');
+}
+function submit() {
+  const g = game(), word = S.typed;
+  if (word.length < WORD_LEN) return reject('Te weinig letters');
+  if (!VALID.has(word)) return reject('Staat niet in de woordenlijst');
+  if (S.settings.hard) {
+    const err = hardModeError(word, g.guesses, g.answer);
+    if (err) return reject(err);
+  }
+  const r = g.guesses.length;
+  if (r === 0) g.hard = S.settings.hard;
+  g.guesses.push(word);
+  S.typed = '';
+  const finished = word === g.answer || g.guesses.length === MAX_TRIES;
+  if (finished) { g.done = true; record(g); }
+  save();
+  busy = true;
+  animateRow(r, word, g, finished);
+}
+function record(g) {
+  if (S.mode !== 'daily' || g.recorded) return;
+  g.recorded = true;
+  const st = S.stats, won = isWin(g);
+  st.played++;
+  if (won) {
+    st.wins++; st.dist[g.guesses.length - 1]++;
+    st.streak = st.lastWinDay === g.day - 1 ? st.streak + 1 : 1;
+    st.lastWinDay = g.day;
+    st.maxStreak = Math.max(st.maxStreak, st.streak);
+  } else st.streak = 0;
+  if (ghostOn()) {
+    const res = ghostOutcome(g).result;
+    if (res === 'won') st.ghostWon++; else if (res === 'lost') st.ghostLost++; else st.ghostTied++;
+  }
+}
+function animateRow(r, word, g, finished) {
+  const pat = evaluate(word, g.answer), step = reduced() ? 0 : 260, half = reduced() ? 0 : 230;
+  tiles[r].forEach((t, c) => {
+    setTimeout(() => {
+      if (step) t.classList.add('flip');
+      setTimeout(() => setTile(t, word[c], pat[c]), half);
+    }, c * step);
+  });
+  setTimeout(() => {
+    busy = false;
+    drawKeys(); drawGhost();
+    const list = ghostOn() ? ghostList(g) : [];
+    if (ghostOn() && r < list.length) {
+      retrigger($('ghost'), 'haunt');
+      if (list[r] === g.answer && !finished) toast(`Het spook heeft het woord in ${r + 1} geraden. Haal het nog in.`, 2800);
+    }
+    if (finished) finish(g, r);
+  }, (WORD_LEN - 1) * step + half * 2 + 20);
+}
+const PRAISE = ['Geniaal', 'Schitterend', 'Indrukwekkend', 'Knap gedaan', 'Goed zo', 'Op het nippertje'];
+function finish(g, r) {
+  const won = isWin(g);
+  if (won) {
+    toast(PRAISE[r], 1800);
+    if (!reduced()) tiles[r].forEach((t, c) => setTimeout(() => { t.classList.remove('flip'); t.classList.add('bounce'); }, c * 100));
+  } else toast(g.answer.toUpperCase(), 2600);
+  setTimeout(() => openStats(true), reduced() ? 400 : 1700);
+}
+
+function setMode(mode) {
+  if (busy) return;
+  S.mode = mode; S.typed = '';
+  if (mode === 'practice' && !S.practice) newPractice();
+  ensureDaily();
+  drawAll(); save();
+}
+
+/* ---------- Dialogs ---------- */
+function openStats(isEnd) {
+  const g = game(), st = S.stats;
+  $('stats-title').textContent = g.done && isEnd ? (isWin(g) ? 'Geraden' : 'Niet geraden') : 'Statistieken';
+  const res = $('result');
+  res.textContent = '';
+  if (g.done) {
+    if (ghostOn()) {
+      const o = ghostOutcome(g), v = document.createElement('p');
+      v.className = 'verdict';
+      const ghostTxt = o.ghostTries > MAX_TRIES ? 'het spook vond het niet' : `het spook had er ${o.ghostTries} nodig`;
+      const mine = o.myTries > MAX_TRIES ? 'Jij vond het woord niet' : `Jij had ${o.myTries} ${o.myTries === 1 ? 'poging' : 'pogingen'} nodig`;
+      const end = o.result === 'won' ? 'Spook verslagen.' : o.result === 'lost' ? 'Het spook wint.' : 'Gelijkspel.';
+      v.textContent = `${mine}, ${ghostTxt}. ${end}`;
+      res.append(v);
+      const words = document.createElement('div');
+      words.className = 'ghost-words';
+      words.setAttribute('aria-label', 'Woorden van het spook: ' + ghostList(g).join(', '));
+      for (const w of ghostList(g)) {
+        const line = document.createElement('div');
+        evaluate(w, g.answer).forEach((s, i) => {
+          const c = document.createElement('span');
+          c.className = 'tile'; c.dataset.state = s; c.textContent = w[i];
+          line.append(c);
+        });
+        words.append(line);
+      }
+      const h = document.createElement('h3');
+      h.textContent = 'Dit raadde het spook';
+      res.append(h, words);
+      const hs = document.createElement('h3');
+      hs.textContent = 'Jouw spel';
+      res.append(hs);
+    }
+    const a = document.createElement('p');
+    a.innerHTML = `Het woord was <b>${g.answer.toUpperCase()}</b>.`;
+    res.append(a);
+  }
+  const pct = st.played ? Math.round((st.wins / st.played) * 100) : 0;
+  $('stat-grid').innerHTML = [[st.played, 'Gespeeld'], [pct, '% gewonnen'], [st.streak, 'Reeks'], [st.maxStreak, 'Langste reeks']]
+    .map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('');
+  const max = Math.max(1, ...st.dist);
+  const nowRow = S.mode === 'daily' && g.done && isWin(g) ? g.guesses.length - 1 : -1;
+  $('dist').innerHTML = st.dist.map((n, i) =>
+    `<div><span>${i + 1}</span><span class="bar${i === nowRow ? ' now' : ''}" style="--w:${Math.max(6, (n / max) * 100)}%">${n}</span></div>`).join('');
+  $('ghost-record').textContent = st.ghostWon + st.ghostTied + st.ghostLost
+    ? `Tegen het spook: ${st.ghostWon} gewonnen, ${st.ghostTied} gelijk, ${st.ghostLost} verloren.` : '';
+  $('ghost-record').hidden = !$('ghost-record').textContent;
+  updateCountdown();
+
+  const actions = $('actions');
+  actions.textContent = '';
+  if (g.done) actions.append(button('Uitslag kopiëren', '', copyResult));
+  if (S.mode === 'practice') {
+    if (g.done) actions.append(button('Nieuw oefenwoord', 'alt', () => { newPractice(); S.typed = ''; drawAll(); save(); $('dlg-stats').close(); }));
+    actions.append(button('Terug naar dagwoord', 'alt', () => { setMode('daily'); $('dlg-stats').close(); }));
+  } else if (g.done) {
+    actions.append(button('Oefenwoord spelen', 'alt', () => { if (!S.practice || S.practice.done) newPractice(); setMode('practice'); $('dlg-stats').close(); }));
+  }
+  $('share-fallback').hidden = true;
+  showDialog('dlg-stats');
+}
+function button(text, cls, fn) {
+  const b = document.createElement('button');
+  b.className = 'btn ' + cls; b.textContent = text; b.type = 'button';
+  b.addEventListener('click', fn);
+  return b;
+}
+function updateCountdown() {
+  const el = $('next-word');
+  const d = new Date(), end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+  const s = Math.max(0, Math.floor((end - d) / 1000));
+  const p = n => String(n).padStart(2, '0');
+  el.textContent = `Volgend dagwoord over ${p(Math.floor(s / 3600))}:${p(Math.floor(s / 60) % 60)}:${p(s % 60)}`;
+}
+function resultText() {
+  const g = game(), hc = S.settings.hc;
+  const dark = getComputedStyle(document.documentElement).colorScheme.includes('dark');
+  const sq = { correct: hc ? '🟧' : '🟩', present: hc ? '🟦' : '🟨', absent: dark ? '⬛' : '⬜' };
+  const score = isWin(g) ? g.guesses.length : 'X';
+  const head = `Zeslet ${S.mode === 'daily' ? g.day : 'oefenwoord'} ${score}/${MAX_TRIES}${g.hard ? '*' : ''}`;
+  const lines = g.guesses.map(w => evaluate(w, g.answer).map(s => sq[s]).join(''));
+  let txt = head + '\n\n' + lines.join('\n');
+  if (ghostOn()) {
+    const o = ghostOutcome(g);
+    const ghostScore = o.ghostTries > MAX_TRIES ? 'X' : o.ghostTries;
+    const end = o.result === 'won' ? 'verslagen' : o.result === 'lost' ? 'won van mij' : 'gelijkspel';
+    txt += `\n\n👻 Spook ${ghostScore}/${MAX_TRIES}: ${end}`;
+  }
+  return txt;
+}
+function copyResult() {
+  const text = resultText();
+  const fb = () => {
+    const area = $('share-fallback');
+    area.value = text; area.hidden = false;
+    area.focus(); area.select();
+    toast('Selecteer de tekst en kopieer hem zelf');
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => toast('Uitslag gekopieerd'), fb);
+  } else fb();
+}
+function showDialog(id) {
+  document.querySelectorAll('dialog[open]').forEach(d => d.close());
+  $(id).showModal();
+}
+
+/* ---------- Settings ---------- */
+function applyTheme() {
+  const root = document.documentElement;
+  if (S.settings.theme) root.dataset.theme = S.settings.theme;
+  root.classList.toggle('hc', S.settings.hc);
+}
+function effectiveDark() {
+  if (S.settings.theme) return S.settings.theme === 'dark';
+  const attr = document.documentElement.dataset.theme;
+  if (attr) return attr === 'dark';
+  return matchMedia('(prefers-color-scheme: dark)').matches;
+}
+function openSettings() {
+  $('set-hard').checked = S.settings.hard;
+  $('set-ghost').checked = S.settings.ghost;
+  $('set-dark').checked = effectiveDark();
+  $('set-hc').checked = S.settings.hc;
+  showDialog('dlg-settings');
+}
+function bindSettings() {
+  $('set-hard').addEventListener('change', e => {
+    const g = game();
+    if (g.guesses.length && !g.done) {
+      e.target.checked = S.settings.hard;
+      return toast('Dit kan alleen aan het begin van een spel');
+    }
+    S.settings.hard = e.target.checked; save();
+  });
+  $('set-ghost').addEventListener('change', e => { S.settings.ghost = e.target.checked; drawGhost(); save(); });
+  $('set-dark').addEventListener('change', e => { S.settings.theme = e.target.checked ? 'dark' : 'light'; applyTheme(); save(); });
+  $('set-hc').addEventListener('change', e => { S.settings.hc = e.target.checked; applyTheme(); save(); });
+}
+
+/* ---------- Start ---------- */
+function start(data) {
+  S = data && data.state ? data.state : load();
+  ensureDaily();
+  if (S.mode === 'practice' && !S.practice) S.mode = 'daily';
+
+  window.claude?.hot?.snapshot?.(() => ({ state: S }));
+
+  applyTheme();
+  buildBoard();
+  buildKeyboard();
+  bindSettings();
+
+  $('btn-help').addEventListener('click', () => showDialog('dlg-help'));
+  $('btn-stats').addEventListener('click', () => openStats(false));
+  $('btn-settings').addEventListener('click', openSettings);
+  $('btn-mode').addEventListener('click', () => {
+    setMode(S.mode === 'daily' ? 'practice' : 'daily');
+    toast(S.mode === 'practice' ? 'Oefenen telt niet mee in je statistieken' : 'Terug naar het dagwoord');
+  });
+  $('ghost').addEventListener('click', () => showDialog('dlg-help'));
+
+  document.querySelectorAll('dialog').forEach(d => {
+    d.querySelector('.close').addEventListener('click', () => d.close());
+    d.addEventListener('click', e => { if (e.target === d) d.close(); });
+    d.addEventListener('close', () => { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); });
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey || document.querySelector('dialog[open]')) return;
+    const focused = document.activeElement && document.activeElement.closest && document.activeElement.closest('header button, #ghost');
+    if (e.key === 'Enter') {
+      if (focused) return;
+      e.preventDefault(); handleKey('enter');
+    } else if (e.key === 'Backspace') {
+      e.preventDefault(); handleKey('back');
+    } else if (/^[a-zA-Z]$/.test(e.key)) {
+      handleKey(e.key.toLowerCase());
+    }
+  });
+
+  new ResizeObserver(sizeBoard).observe($('board-wrap'));
+  sizeBoard();
+  drawAll();
+
+  setInterval(() => {
+    if ($('dlg-stats').open) updateCountdown();
+    if (S.daily.day !== today() && !busy) { ensureDaily(); if (S.mode === 'daily') drawAll(); save(); }
+  }, 1000);
+
+  const restored = !!(data && data.state);
+  if (!S.seenHelp) { S.seenHelp = true; showDialog('dlg-help'); }
+  else if (!restored && game().done) setTimeout(() => openStats(true), 500);
+  save();
+}
+
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+</body>
+</html>
