@@ -76,8 +76,6 @@ dialog .icon-btn:hover { background: var(--empty-mini); }
 .brand h1 { margin: 0; font: 400 clamp(23px, 6.5vw, 29px)/1 var(--display); letter-spacing: .06em; text-transform: uppercase; }
 .brand h1 span { display: inline-block; animation: drop .55s cubic-bezier(.3,1.5,.5,1) both; animation-delay: calc(var(--i) * 70ms); }
 @keyframes drop { from { transform: translateY(-140%) rotate(-12deg); opacity: 0; } }
-.brand h1:hover span { animation: wave .5s ease; animation-delay: calc(var(--i) * 50ms); }
-@keyframes wave { 40% { transform: translateY(-5px); color: var(--cyan); } }
 .brand p {
   margin: 3px 0 0; font-size: 10px; font-weight: 600; color: #bcd0ec;
   letter-spacing: .1em; text-transform: uppercase; white-space: nowrap;
@@ -93,8 +91,14 @@ main {
 
 #ghost {
   flex: none; width: calc(var(--size, 320px) * 5 / 6); display: flex; align-items: center; gap: 8px;
-  background: none; border: 0; padding: 2px 0; color: var(--muted);
+  background: none; border: 0; padding: 2px 0; color: var(--muted); opacity: .8;
 }
+#legend {
+  flex: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 14px;
+  font-size: 12px; font-weight: 600; color: var(--muted);
+}
+#legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+#legend i { width: 11px; height: 11px; border-radius: 2px; display: block; }
 #ghost svg { flex: none; width: 18px; height: 18px; animation: bob 2.8s ease-in-out infinite; }
 @keyframes bob { 50% { transform: translateY(-2px); } }
 #ghost .label { font-size: 12px; font-weight: 700; }
@@ -165,6 +169,12 @@ main {
 .spacer { flex: .5 1 0; }
 @media (max-height: 680px) { .key { height: 46px; } header { height: 50px; } }
 @media (max-height: 560px) { .key { height: 38px; } }
+@media (max-height: 620px) { #legend { display: none; } }
+@media (max-height: 500px) and (orientation: landscape) {
+  main { flex-direction: row; align-items: center; gap: 20px; }
+  #board-wrap { flex: 1 1 0; min-width: 0; height: 100%; }
+  #keyboard { flex: 1 1 0; min-width: 0; max-width: 460px; }
+}
 
 #toasts {
   position: fixed; z-index: 30; left: 0; right: 0;
@@ -191,7 +201,7 @@ dialog {
   padding: 20px; border: 1px solid var(--line); border-radius: 8px; border-top: 5px solid var(--cyan);
   background: var(--surface); color: var(--fg); box-shadow: 0 10px 34px rgba(0,16,50,.35);
 }
-dialog[open] { animation: dlg .3s cubic-bezier(.25,1.25,.5,1) both; }
+dialog[open] { animation: dlg .3s cubic-bezier(.25,1.25,.5,1) backwards; }
 @keyframes dlg { from { transform: translateY(26px) scale(.97); opacity: 0; } }
 dialog::backdrop { background: var(--shade); animation: fade .25s both; }
 @keyframes fade { from { opacity: 0; } }
@@ -215,9 +225,11 @@ dialog a { color: inherit; }
 @keyframes grow { from { width: 22px; } }
 .bar.now { background: var(--correct); color: var(--on-correct); }
 .verdict { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+.compare { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 16px; }
+.compare h3 { margin: 0 0 6px; }
 .ghost-words { display: grid; gap: 3px; }
-.ghost-words div { display: grid; grid-template-columns: repeat(5, 26px); gap: 2px; animation: toast .3s both; animation-delay: calc(var(--i) * 90ms); }
-.ghost-words .tile { height: 26px; font-size: 14px; border-width: 0; }
+.ghost-words div { display: grid; grid-template-columns: repeat(5, 22px); gap: 2px; animation: toast .3s both; animation-delay: calc(var(--i) * 90ms); }
+.ghost-words .tile { height: 22px; font-size: 12px; border-width: 0; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 .btn { flex: 1 1 150px; min-height: 46px; border: 0; border-radius: 24px; font-weight: 700; font-size: 15px; background: var(--correct); color: var(--on-correct); padding: 8px 16px; transition: transform .12s, filter .12s; }
 .btn:hover { transform: translateY(-2px); filter: brightness(1.06); }
@@ -263,6 +275,11 @@ dialog a { color: inherit; }
         <span id="ghost-track"></span>
       </button>
       <div id="board" role="grid" aria-label="Game board"></div>
+      <div id="legend" aria-hidden="true">
+        <span><i style="background:var(--correct)"></i>Right spot</span>
+        <span><i style="background:var(--present)"></i>Wrong spot</span>
+        <span><i style="background:var(--absent)"></i>Not in word</span>
+      </div>
     </div>
     <div id="keyboard" aria-label="Keyboard"></div>
   </main>
@@ -554,13 +571,17 @@ function drawAll() { drawBoard(); drawKeys(false); drawGhost(); drawChrome(); }
 function sizeBoard() {
   const wrap = $('board-wrap');
   const stripH = ghostOn() ? $('ghost').offsetHeight + 8 : 0;
-  const size = Math.max(180, Math.min(wrap.clientWidth * 6 / 5, wrap.clientHeight - stripH, 480));
+  const legend = $('legend'), legendH = legend.offsetHeight ? legend.offsetHeight + 8 : 0;
+  const size = Math.max(90, Math.min(wrap.clientWidth * 6 / 5, wrap.clientHeight - stripH - legendH, 480));
   document.documentElement.style.setProperty('--size', size + 'px');
 }
 
 function toast(msg, ms = 1500) {
   const t = document.createElement('div');
   t.className = 'toast'; t.textContent = msg;
+  /* An open modal dialog covers everything outside it, so messages must live inside it. */
+  const host = document.querySelector('dialog[open]') || document.body;
+  if ($('toasts').parentElement !== host) host.append($('toasts'));
   $('toasts').prepend(t);
   setTimeout(() => t.remove(), ms);
 }
@@ -626,7 +647,9 @@ function handleKey(id) {
   if (id === 'back') {
     if (!S.typed) return;
     S.typed = S.typed.slice(0, -1);
-    setTile(tiles[g.guesses.length][S.typed.length], '', null);
+    const cleared = tiles[g.guesses.length][S.typed.length];
+    cleared.classList.remove('pop');
+    setTile(cleared, '', null);
     markCursor();
     return save();
   }
@@ -711,15 +734,21 @@ function finish(g, r) {
     tiles[r].forEach(t => { t.classList.remove('flip'); t.classList.add('sink'); });
     if (ghostOn() && ghostOutcome(g).result === 'lost') ghostFlyby();
   }
-  setTimeout(() => openStats(true), reduced() ? 400 : 1900);
+  /* Stay busy until the end screen is up, so the game cannot change underneath it. */
+  busy = true;
+  setTimeout(() => {
+    busy = false;
+    if (!document.querySelector('dialog[open]')) openStats(true);
+  }, reduced() ? 400 : 1900);
 }
 
 function setMode(mode) {
-  if (busy) return;
+  if (busy) return false;
   S.mode = mode; S.typed = '';
-  if (mode === 'practice' && !S.practice) newPractice();
+  if (mode === 'practice' && (!S.practice || S.practice.done)) newPractice();
   ensureDaily();
   drawAll(); save();
+  return true;
 }
 
 /* ---------- Dialogs ---------- */
@@ -738,6 +767,9 @@ function openStats(isEnd) {
   const res = $('result');
   res.textContent = '';
   if (g.done) {
+    const a = document.createElement('p');
+    a.innerHTML = `The word was <b>${g.answer.toUpperCase()}</b>.`;
+    res.append(a);
     if (ghostOn()) {
       const o = ghostOutcome(g), v = document.createElement('p');
       v.className = 'verdict';
@@ -745,30 +777,11 @@ function openStats(isEnd) {
       const mine = o.myTries > MAX_TRIES ? 'You missed it' : `You took ${o.myTries}`;
       const end = o.result === 'won' ? 'Ghost beaten.' : o.result === 'lost' ? 'The ghost wins.' : 'A draw.';
       v.textContent = `${mine}, ${ghostTxt}. ${end}`;
-      res.append(v);
-      const words = document.createElement('div');
-      words.className = 'ghost-words';
-      words.setAttribute('aria-label', 'Ghost guesses: ' + ghostList(g).join(', '));
-      ghostList(g).forEach((w, n) => {
-        const line = document.createElement('div');
-        line.style.setProperty('--i', n);
-        evaluate(w, g.answer).forEach((s, i) => {
-          const c = document.createElement('span');
-          c.className = 'tile'; c.dataset.state = s; c.textContent = w[i];
-          line.append(c);
-        });
-        words.append(line);
-      });
-      const h = document.createElement('h3');
-      h.textContent = 'The ghost tried';
-      res.append(h, words);
-      const hs = document.createElement('h3');
-      hs.textContent = 'Your game';
-      res.append(hs);
+      const compare = document.createElement('div');
+      compare.className = 'compare';
+      compare.append(guessGrid('You', g.guesses, g.answer), guessGrid('Ghost', ghostList(g), g.answer));
+      res.append(v, compare);
     }
-    const a = document.createElement('p');
-    a.innerHTML = `The word was <b>${g.answer.toUpperCase()}</b>.`;
-    res.append(a);
   }
   const pct = st.played ? Math.round((st.wins / st.played) * 100) : 0;
   const grid = [[st.played, 'Played'], [pct, 'Win %'], [st.streak, 'Streak'], [st.maxStreak, 'Best streak']];
@@ -794,6 +807,26 @@ function openStats(isEnd) {
   }
   $('share-fallback').hidden = true;
   showDialog('dlg-stats');
+}
+function guessGrid(label, list, answer) {
+  const box = document.createElement('div');
+  const h = document.createElement('h3');
+  h.textContent = label;
+  const words = document.createElement('div');
+  words.className = 'ghost-words';
+  words.setAttribute('aria-label', `${label}: ${list.join(', ')}`);
+  list.forEach((w, n) => {
+    const line = document.createElement('div');
+    line.style.setProperty('--i', n);
+    evaluate(w, answer).forEach((s, i) => {
+      const c = document.createElement('span');
+      c.className = 'tile'; c.dataset.state = s; c.textContent = w[i];
+      line.append(c);
+    });
+    words.append(line);
+  });
+  box.append(h, words);
+  return box;
 }
 function button(text, cls, fn) {
   const b = document.createElement('button');
@@ -886,27 +919,40 @@ function start() {
   $('btn-stats').addEventListener('click', () => openStats(false));
   $('btn-settings').addEventListener('click', openSettings);
   $('btn-mode').addEventListener('click', () => {
-    setMode(S.mode === 'daily' ? 'practice' : 'daily');
+    if (!setMode(S.mode === 'daily' ? 'practice' : 'daily')) return;
     toast(S.mode === 'practice' ? 'Practice games do not count in your statistics' : 'Back to the daily word');
+  });
+  /* A mouse or touch click must not leave focus on a button, or Enter would press it again. */
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('button');
+    if (b && e.detail > 0) b.blur();
   });
   $('ghost').addEventListener('click', () => showDialog('dlg-help'));
 
   document.querySelectorAll('dialog').forEach(d => {
     d.querySelector('.close').addEventListener('click', () => d.close());
-    d.addEventListener('click', e => { if (e.target === d) d.close(); });
+    d.addEventListener('click', e => {
+      if (e.target !== d) return;
+      const r = d.getBoundingClientRect();
+      const outside = e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+      if (outside) d.close();
+    });
     d.addEventListener('close', () => { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); });
   });
 
   document.addEventListener('keydown', e => {
     if (e.ctrlKey || e.metaKey || e.altKey || document.querySelector('dialog[open]')) return;
-    const focused = document.activeElement && document.activeElement.closest && document.activeElement.closest('header button, #ghost');
+    const active = document.activeElement;
+    const focused = active && active.closest && active.closest('button');
     const flash = id => { if (!reduced() && keyEls[id]) retrigger(keyEls[id], 'press'); };
     if (e.key === 'Enter') {
-      if (focused) return;
+      if (focused) return; /* Enter on a button reached with Tab presses that button. */
       e.preventDefault(); flash('enter'); handleKey('enter');
     } else if (e.key === 'Backspace') {
+      if (focused) active.blur();
       e.preventDefault(); flash('back'); handleKey('back');
     } else if (/^[a-zA-Z]$/.test(e.key)) {
+      if (focused) active.blur();
       flash(e.key.toLowerCase()); handleKey(e.key.toLowerCase());
     }
   });
